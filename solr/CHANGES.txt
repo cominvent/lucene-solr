@@ -85,6 +85,9 @@ New Features
 * SOLR-9469: JettySolrRunner now has the option of restarting using a different
   port (Alan Woodward)
 
+* SOLR-9481: Authentication and Authorization plugins now work in standalone mode if security.json is placed in
+  SOLR_HOME on every node. Editing through API is not supported. (janhoy)
+
 Bug Fixes
 ----------------------
 

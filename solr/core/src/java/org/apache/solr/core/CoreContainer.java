@@ -17,7 +17,9 @@
 package org.apache.solr.core;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -296,7 +298,7 @@ public class CoreContainer {
     }
 
     if (pluginClassName != null) {
-      log.info("Authentication plugin class obtained from ZK: "+pluginClassName);
+      log.info("Authentication plugin class obtained from security.json: "+pluginClassName);
     } else if (System.getProperty(AUTHENTICATION_PLUGIN_PROP) != null) {
       pluginClassName = System.getProperty(AUTHENTICATION_PLUGIN_PROP);
       log.info("Authentication plugin class obtained from system property '" +
@@ -459,9 +461,9 @@ public class CoreContainer {
     zkSys.initZooKeeper(this, solrHome, cfg.getCloudConfig());
     if(isZooKeeperAware())  pkiAuthenticationPlugin = new PKIAuthenticationPlugin(this, zkSys.getZkController().getNodeName());
 
-    ZkStateReader.ConfigData securityConfig = isZooKeeperAware() ? getZkController().getZkStateReader().getSecurityProps(false) : new ZkStateReader.ConfigData(EMPTY_MAP, -1);
-    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.data.get("authorization"));
-    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.data.get("authentication"));
+    Map<String, Object> securityConfig = getSecurityProps(false);
+    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.get("authorization"));
+    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.get("authentication"));
 
     this.backupRepoFactory = new BackupRepositoryFactory(cfg.getBackupRepositoryPlugins());
 
@@ -562,11 +564,28 @@ public class CoreContainer {
     }
   }
 
+  public Map<String, Object> getSecurityProps(boolean fresh) {
+    return isZooKeeperAware() ?
+        getZkController().getZkStateReader().getSecurityProps(fresh).data :
+        getSecurityPropsLocal();
+  }
+
+  private Map<String, Object> getSecurityPropsLocal() {
+    Path securityJson = SolrResourceLoader.locateSolrHome().resolve("security.json");
+    if (Files.exists(securityJson)) {
+      try (InputStream securityJsonIs = Files.newInputStream(securityJson)) {
+        log.info("Using local version of security.json from Solr home");
+        return (Map<String, Object>) Utils.fromJSON(securityJsonIs);
+      } catch (IOException e) { /* Fall through */ }
+    }
+    return EMPTY_MAP;
+  }
+
   public void securityNodeChanged() {
     log.info("Security node changed");
-    ZkStateReader.ConfigData securityConfig = getZkController().getZkStateReader().getSecurityProps(false);
-    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.data.get("authorization"));
-    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.data.get("authentication"));
+    Map<String, Object> securityConfig = getSecurityProps(false);
+    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.get("authorization"));
+    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.get("authentication"));
   }
 
   private static void checkForDuplicateCoreNames(List<CoreDescriptor> cds) {
