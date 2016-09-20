@@ -87,6 +87,9 @@ New Features
 
 * SOLR-9319: DELETEREPLICA can accept a 'count' and remove appropriate replicas (Nitin Sharma, noble)
 
+* SOLR-9534: You can now set Solr's log level through environment variable SOLR_LOG_LEVEL
+  Also adds conveience arguments -q (quiet: WARN) and -v (verbose: DEBUG) to bin/solr (janhoy)
+
 Bug Fixes
 ----------------------
 

@@ -46,6 +46,8 @@ import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.SolrZkClient;
@@ -110,9 +112,17 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
   public static final String SOLRHOME_ATTRIBUTE = "solr.solr.home";
 
+  public static final String SOLR_LOG_LEVEL = "solr.log.level";
+
   @Override
   public void init(FilterConfig config) throws ServletException
   {
+    String logLevel = System.getProperty(SOLR_LOG_LEVEL);
+    if (logLevel != null) {
+      log.info("Log level override, property solr.log.level=" + logLevel);
+      LogManager.getRootLogger().setLevel(Level.toLevel(logLevel, Level.INFO));
+    }
+
     log.info("SolrDispatchFilter.init(): {}", this.getClass().getClassLoader());
 
     String exclude = config.getInitParameter("excludePatterns");
