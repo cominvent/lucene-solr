@@ -467,10 +467,6 @@ public class CoreContainer {
     initializeAuthorizationPlugin((Map<String, Object>) securityConfig.get("authorization"));
     initializeAuthenticationPlugin((Map<String, Object>) securityConfig.get("authentication"));
 
-    ZkStateReader.ConfigData securityConfig = isZooKeeperAware() ? getZkController().getZkStateReader().getSecurityProps(false) : new ZkStateReader.ConfigData(EMPTY_MAP, -1);
-    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.data.get("authorization"));
-    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.data.get("authentication"));
-
     this.backupRepoFactory = new BackupRepositoryFactory(cfg.getBackupRepositoryPlugins());
 
     containerHandlers.put(ZK_PATH, new ZookeeperInfoHandler(this));
