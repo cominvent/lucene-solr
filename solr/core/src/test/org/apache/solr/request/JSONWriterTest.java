@@ -35,8 +35,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test some aspects of JSON/python writer output (very incomplete)
+ * @Deprecated use {@link org.apache.solr.response.JSONWriterTest} instead
  *
  */
+@Deprecated
 public class JSONWriterTest extends SolrTestCaseJ4 {
   @BeforeClass
   public static void beforeClass() throws Exception {

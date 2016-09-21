@@ -36,10 +36,11 @@ import org.junit.BeforeClass;
 
 /**
  * Test for BinaryResponseWriter
- *
+ * @Deprecated use {@link org.apache.solr.response.TestBinaryResponseWriter} instead.
  *
  * @since solr 1.4
  */
+@Deprecated
 public class TestBinaryResponseWriter extends AbstractSolrTestCase {
 
   

@@ -55,6 +55,10 @@ import org.noggit.JSONParser;
 import org.noggit.JSONWriter;
 import org.noggit.ObjectBuilder;
 
+/** @Deprecated use {@link org.apache.solr.response.SmileWriterTest} instead.
+ *
+ */
+@Deprecated
 public class SmileWriterTest extends SolrTestCaseJ4 {
   @BeforeClass
   public static void beforeClass() throws Exception {

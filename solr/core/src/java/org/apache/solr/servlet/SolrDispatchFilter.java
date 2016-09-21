@@ -36,6 +36,9 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +49,8 @@ import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
+import org.apache.log4j.Appender;
+import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.solr.common.SolrException;
@@ -112,11 +117,24 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
   public static final String SOLRHOME_ATTRIBUTE = "solr.solr.home";
 
+  public static final String SOLR_LOG_MUTECONSOLE = "solr.log.muteconsole";
+
   public static final String SOLR_LOG_LEVEL = "solr.log.level";
 
   @Override
   public void init(FilterConfig config) throws ServletException
   {
+    String muteConsole = System.getProperty(SOLR_LOG_MUTECONSOLE);
+    if (muteConsole != null && !Arrays.asList("false","0","off","no").contains(muteConsole.toLowerCase(Locale.ROOT))) {
+      Enumeration appenders = LogManager.getRootLogger().getAllAppenders();
+      while (appenders.hasMoreElements()) {
+        Appender appender = (Appender) appenders.nextElement();
+        if (appender instanceof ConsoleAppender) {
+          log.info("Property solr.log.muteconsole given. Muting ConsoleAppender named " + appender.getName());
+          LogManager.getRootLogger().removeAppender(appender);
+        }
+      }
+    }
     String logLevel = System.getProperty(SOLR_LOG_LEVEL);
     if (logLevel != null) {
       log.info("Log level override, property solr.log.level=" + logLevel);
