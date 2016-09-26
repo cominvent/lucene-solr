@@ -258,7 +258,9 @@ function print_usage() {
     echo ""
     echo "  -noprompt     Don't prompt for input; accept all defaults when running examples that accept user input"
     echo ""
-    echo "  -V            Verbose messages from this script"
+    echo "  -v and -q     Verbose (-v) or quiet (-q) logging. Sets default log level to DEBUG or WARN instead of INFO"
+    echo ""
+    echo "  -V or -version Verbose messages from this script"
     echo ""
   elif [ "$CMD" == "stop" ]; then
     echo ""
@@ -696,6 +698,7 @@ if [[ "$SCRIPT_CMD" == "create" || "$SCRIPT_CMD" == "create_core" || "$SCRIPT_CM
 
   CREATE_NUM_SHARDS=1
   CREATE_REPFACT=1
+  FORCE=false
 
   if [ $# -gt 0 ]; then
     while true; do
@@ -747,6 +750,10 @@ if [[ "$SCRIPT_CMD" == "create" || "$SCRIPT_CMD" == "create_core" || "$SCRIPT_CM
               fi
               CREATE_PORT="$2"
               shift 2
+          ;;
+          -force)
+              FORCE=true
+              shift
           ;;
           -help|-usage)
               print_usage "$SCRIPT_CMD"
@@ -805,6 +812,11 @@ if [[ "$SCRIPT_CMD" == "create" || "$SCRIPT_CMD" == "create_core" || "$SCRIPT_CM
     exit 1
   fi
 
+  if [[ "$(whoami)" == "root" ]] && [[ "$FORCE" == "false" ]] ; then
+    echo "WARNING: Creating cores as the root user can cause Solr to fail and is not advisable. Exiting."
+    echo "         If you started Solr as root (not advisable either), force core creation by adding argument -force"
+    exit 1
+  fi
   if [ "$SCRIPT_CMD" == "create_core" ]; then
     run_tool create_core -name "$CREATE_NAME" -solrUrl "$SOLR_URL_SCHEME://$SOLR_TOOL_HOST:$CREATE_PORT/solr" \
       -confdir "$CREATE_CONFDIR" -configsetsDir "$SOLR_TIP/server/solr/configsets"
@@ -1150,6 +1162,14 @@ if [ $# -gt 0 ]; then
             PASS_TO_RUN_EXAMPLE+=" --verbose"
             shift
         ;;
+        -v)
+            SOLR_LOG_LEVEL=DEBUG
+            shift
+        ;;
+        -q)
+            SOLR_LOG_LEVEL=WARN
+            shift
+        ;;
         -all)
             stop_all=true
             shift
@@ -1175,6 +1195,10 @@ if [ $# -gt 0 ]; then
         ;;
     esac
   done
+fi
+
+if [[ $SOLR_LOG_LEVEL ]] ; then
+  SOLR_LOG_LEVEL_OPT="-Dsolr.log.level=$SOLR_LOG_LEVEL"
 fi
 
 if [ -z "$SOLR_SERVER_DIR" ]; then
@@ -1508,6 +1532,11 @@ function launch_solr() {
       echo -e "    RMI_PORT        = $RMI_PORT"
       echo -e "    REMOTE_JMX_OPTS = ${REMOTE_JMX_OPTS[@]}"
     fi
+
+    if [ "$SOLR_LOG_LEVEL" != "" ]; then
+      echo -e "    SOLR_LOG_LEVEL  = $SOLR_LOG_LEVEL"
+    fi
+
     echo -e "\n"
   fi
     
@@ -1520,7 +1549,7 @@ function launch_solr() {
   fi
 
   SOLR_START_OPTS=('-server' "${JAVA_MEM_OPTS[@]}" "${GC_TUNE[@]}" "${GC_LOG_OPTS[@]}" \
-    "${REMOTE_JMX_OPTS[@]}" "${CLOUD_MODE_OPTS[@]}" \
+    "${REMOTE_JMX_OPTS[@]}" "${CLOUD_MODE_OPTS[@]}" $SOLR_LOG_LEVEL_OPT \
     "-Djetty.port=$SOLR_PORT" "-DSTOP.PORT=$stop_port" "-DSTOP.KEY=$STOP_KEY" \
     "${SOLR_HOST_ARG[@]}" "-Duser.timezone=$SOLR_TIMEZONE" \
     "-Djetty.home=$SOLR_SERVER_DIR" "-Dsolr.solr.home=$SOLR_HOME" "-Dsolr.install.dir=$SOLR_TIP" \
@@ -1533,11 +1562,10 @@ function launch_solr() {
   mkdir -p "$SOLR_LOGS_DIR"
 
   if [ "$run_in_foreground" == "true" ]; then
-    echo -e "\nStarting Solr$IN_CLOUD_MODE on port $SOLR_PORT from $SOLR_SERVER_DIR\n"
     exec "$JAVA" "${SOLR_START_OPTS[@]}" $SOLR_ADDL_ARGS -jar start.jar "${SOLR_JETTY_CONFIG[@]}"
   else
     # run Solr in the background
-    nohup "$JAVA" "${SOLR_START_OPTS[@]}" $SOLR_ADDL_ARGS \
+    nohup "$JAVA" "${SOLR_START_OPTS[@]}" $SOLR_ADDL_ARGS -Dsolr.log.muteconsole \
 	"-XX:OnOutOfMemoryError=$SOLR_TIP/bin/oom_solr.sh $SOLR_PORT $SOLR_LOGS_DIR" \
         -jar start.jar "${SOLR_JETTY_CONFIG[@]}" \
 	1>"$SOLR_LOGS_DIR/solr-$SOLR_PORT-console.log" 2>&1 & echo $! > "$SOLR_PID_DIR/solr-$SOLR_PORT.pid"

@@ -191,7 +191,7 @@ public class CoreContainer {
  // private ClientConnectionManager clientConnectionManager = new PoolingClientConnectionManager();
 
   {
-    log.info("New CoreContainer " + System.identityHashCode(this));
+    log.debug("New CoreContainer " + System.identityHashCode(this));
   }
 
   /**
@@ -275,7 +275,7 @@ public class CoreContainer {
       // Read and pass the authorization context to the plugin
       authorizationPlugin.plugin.init(authorizationConf);
     } else {
-      log.info("Security conf doesn't exist. Skipping setup for authorization module.");
+      log.debug("Security conf doesn't exist. Skipping setup for authorization module.");
     }
     this.authorizationPlugin = authorizationPlugin;
     if (old != null) {
@@ -304,7 +304,7 @@ public class CoreContainer {
       log.info("Authentication plugin class obtained from system property '" +
           AUTHENTICATION_PLUGIN_PROP + "': " + pluginClassName);
     } else {
-      log.info("No authentication plugin used.");
+      log.debug("No authentication plugin used.");
     }
     SecurityPluginHolder<AuthenticationPlugin> old = authenticationPlugin;
     SecurityPluginHolder<AuthenticationPlugin> authenticationPlugin = null;
@@ -337,7 +337,7 @@ public class CoreContainer {
       // The default http client of the core container's shardHandlerFactory has already been created and
       // configured using the default httpclient configurer. We need to reconfigure it using the plugin's
       // http client configurer to set it up for internode communication.
-      log.info("Reconfiguring HttpClient settings.");
+      log.debug("Reconfiguring HttpClient settings.");
 
       SolrHttpClientContextBuilder httpClientBuilder = new SolrHttpClientContextBuilder();
       if (builder.getCredentialsProviderProvider() != null) {
@@ -433,7 +433,7 @@ public class CoreContainer {
    * Load the cores defined for this CoreContainer
    */
   public void load()  {
-    log.info("Loading cores into CoreContainer [instanceDir={}]", loader.getInstancePath());
+    log.debug("Loading cores into CoreContainer [instanceDir={}]", loader.getInstancePath());
 
     // add the sharedLib to the shared resource loader before initializing cfg based plugins
     String libDir = cfg.getSharedLibDirectory();
@@ -443,7 +443,9 @@ public class CoreContainer {
         loader.addToClassLoader(SolrResourceLoader.getURLs(libPath));
         loader.reloadLuceneSPI();
       } catch (IOException e) {
-        log.warn("Couldn't add files from {} to classpath: {}", libPath, e.getMessage());
+        if (!libDir.equals("lib")) { // Don't complain if default "lib" dir does not exist
+          log.warn("Couldn't add files from {} to classpath: {}", libPath, e.getMessage());
+        }
       }
     }
 
@@ -759,14 +761,14 @@ public class CoreContainer {
     coreInitFailures.remove(name);
 
     if( old == null || old == core) {
-      log.info( "registering core: "+name );
+      log.debug( "registering core: "+name );
       if (registerInZk) {
         zkSys.registerInZk(core, false);
       }
       return null;
     }
     else {
-      log.info( "replacing core: "+name );
+      log.debug( "replacing core: "+name );
       old.close();
       if (registerInZk) {
         zkSys.registerInZk(core, false);
