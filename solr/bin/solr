@@ -1562,7 +1562,7 @@ function launch_solr() {
   fi
 
   SOLR_START_OPTS=('-server' "${JAVA_MEM_OPTS[@]}" "${GC_TUNE[@]}" "${GC_LOG_OPTS[@]}" \
-    "${REMOTE_JMX_OPTS[@]}" "${CLOUD_MODE_OPTS[@]}" $SOLR_LOG_LEVEL_OPT \
+    "${REMOTE_JMX_OPTS[@]}" "${CLOUD_MODE_OPTS[@]}" $SOLR_LOG_LEVEL_OPT -Dsolr.log.dir="$SOLR_LOGS_DIR" \
     "-Djetty.port=$SOLR_PORT" "-DSTOP.PORT=$stop_port" "-DSTOP.KEY=$STOP_KEY" \
     "${SOLR_HOST_ARG[@]}" "-Duser.timezone=$SOLR_TIMEZONE" \
     "-Djetty.home=$SOLR_SERVER_DIR" "-Dsolr.solr.home=$SOLR_HOME" "-Dsolr.install.dir=$SOLR_TIP" \
