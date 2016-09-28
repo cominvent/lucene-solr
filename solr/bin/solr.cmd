@@ -973,6 +973,18 @@ cd /d "%SOLR_SERVER_DIR%"
 IF NOT EXIST "!SOLR_LOGS_DIR!" (
   mkdir "!SOLR_LOGS_DIR!"
 )
+copy /Y NUL "!SOLR_LOGS_DIR!\.writable" > NUL 2>&1 && set WRITEOK=1
+IF DEFINED WRITEOK (
+  del "!SOLR_LOGS_DIR!\.writable"
+) else (
+  echo "ERROR: Logs directory %SOLR_LOGS_DIR% is not writable or could not be created. Exiting"
+  GOTO :eof
+)
+echo.!SOLR_LOGS_DIR! | findstr /C:"^(contexts|etc|lib|modules|resources|scripts|solr|solr-webapp)$" 1>nul
+if errorlevel 0 (
+  echo "ERROR: Logs directory $SOLR_LOGS_DIR is invalid. Reserved for the system. Exiting"
+  GOTO :eof
+)
 
 IF NOT EXIST "%SOLR_SERVER_DIR%\tmp" (
   mkdir "%SOLR_SERVER_DIR%\tmp"
