@@ -1381,20 +1381,15 @@ if [ ! -e "$SOLR_HOME" ]; then
   exit 1
 fi
 
-# backup the log files before starting
-#if [ -f "$SOLR_LOGS_DIR/solr.log" ]; then
-#  if $verbose ; then
-#    echo "Backing up $SOLR_LOGS_DIR/solr.log"
-#  fi
-#  mv "$SOLR_LOGS_DIR/solr.log" "$SOLR_LOGS_DIR/solr_log_$(date +"%Y%m%d_%H%M")"
-#fi
+# Archive last run GC logs TODO
+#if test -n "$(find "$SOLR_LOGS_DIR" -maxdepth 1 -name 'solr_gc_*' -print -quit)"
 
-#if [ -f "$SOLR_LOGS_DIR/solr_gc.log" ]; then
-#  if $verbose ; then
-#    echo "Backing up $SOLR_LOGS_DIR/solr_gc.log"
-#  fi
-#  mv "$SOLR_LOGS_DIR/solr_gc.log.0.current" "$SOLR_LOGS_DIR/solr_gc_log_$(date +"%Y%m%d_%H%M")"
-#fi
+if $(find "$SOLR_LOGS_DIR" -name solr_gc_*) ; then
+  echo "Archiving old garbage collection logs to $SOLR_LOGS_DIR/archived"
+  mkdir -p "$SOLR_LOGS_DIR/archived"
+  rm "$SOLR_LOGS_DIR/archived/*" 2>/dev/null
+  find -X "$SOLR_LOGS_DIR" -name solr_gc_* |xargs mv "$SOLR_LOGS_DIR/archived/"
+fi
 
 java_ver_out=`echo "$("$JAVA" -version 2>&1)"`
 JAVA_VERSION=`echo $java_ver_out | grep "java version" | awk '{ print substr($3, 2, length($3)-2); }'`
@@ -1409,7 +1404,7 @@ if [ "$GC_LOG_OPTS" != "" ]; then
   if [ "$JAVA_VENDOR" == "IBM J9" ]; then
     gc_log_flag="-Xverbosegclog"
   fi
-  GC_LOG_OPTS=($GC_LOG_OPTS "$gc_log_flag:$SOLR_LOGS_DIR/solr_gc.log" -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10K)
+  GC_LOG_OPTS=($GC_LOG_OPTS "$gc_log_flag:$SOLR_LOGS_DIR/solr_gc_$(date +"%Y%m%d%H%M%S").log" -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10K)
 else
   GC_LOG_OPTS=()
 fi
