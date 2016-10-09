@@ -1,4 +1,4 @@
-@REM
+﻿﻿@REM
 @REM  Licensed to the Apache Software Foundation (ASF) under one or more
 @REM  contributor license agreements.  See the NOTICE file distributed with
 @REM  this work for additional information regarding copyright ownership.
@@ -728,7 +728,9 @@ IF "%STOP_KEY%"=="" set STOP_KEY=solrrocks
 
 @REM This is quite hacky, but examples rely on a different log4j.properties
 @REM so that we can write logs for examples to %SOLR_HOME%\..\logs
-set "SOLR_LOGS_DIR=%SOLR_SERVER_DIR%\logs"
+IF [%SOLR_LOGS_DIR%] == [] (
+  set "SOLR_LOGS_DIR=%SOLR_SERVER_DIR%\logs"
+)
 set "EXAMPLE_DIR=%SOLR_TIP%\example"
 set TMP=!SOLR_HOME:%EXAMPLE_DIR%=!
 IF NOT "%TMP%"=="%SOLR_HOME%" (
@@ -980,9 +982,10 @@ IF DEFINED WRITEOK (
   echo "ERROR: Logs directory %SOLR_LOGS_DIR% is not writable or could not be created. Exiting"
   GOTO :eof
 )
-echo.!SOLR_LOGS_DIR! | findstr /C:"^(contexts|etc|lib|modules|resources|scripts|solr|solr-webapp)$" 1>nul
-if errorlevel 0 (
-  echo "ERROR: Logs directory $SOLR_LOGS_DIR is invalid. Reserved for the system. Exiting"
+echo " contexts etc lib modules resources scripts solr solr-webapp " > "%TEMP%\solr-pattern.txt"
+findstr /i /C:" %SOLR_LOGS_DIR% " "%TEMP%\solr-pattern.txt" 1>nul
+if %ERRORLEVEL% == 0 (
+  echo "ERROR: Logs directory %SOLR_LOGS_DIR% is invalid. Reserved for the system. Exiting"
   GOTO :eof
 )
 
