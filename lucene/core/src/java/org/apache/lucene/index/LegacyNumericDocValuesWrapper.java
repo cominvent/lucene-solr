@@ -30,16 +30,12 @@ public final class LegacyNumericDocValuesWrapper extends NumericDocValues {
   private final LegacyNumericDocValues values;
   private final int maxDoc;
   private int docID = -1;
+  private long value;
   
   public LegacyNumericDocValuesWrapper(Bits docsWithField, LegacyNumericDocValues values) {
     this.docsWithField = docsWithField;
     this.values = values;
     this.maxDoc = docsWithField.length();
-  }
-
-  /** Constructor used only for norms */
-  public LegacyNumericDocValuesWrapper(int maxDoc, LegacyNumericDocValues values) {
-    this(new Bits.MatchAllBits(maxDoc), values);
   }
 
   @Override
@@ -51,7 +47,8 @@ public final class LegacyNumericDocValuesWrapper extends NumericDocValues {
   public int nextDoc() {
     docID++;
     while (docID < maxDoc) {
-      if (docsWithField.get(docID)) {
+      value = values.get(docID);
+      if (value != 0 || docsWithField.get(docID)) {
         return docID;
       }
       docID++;
@@ -62,9 +59,7 @@ public final class LegacyNumericDocValuesWrapper extends NumericDocValues {
 
   @Override
   public int advance(int target) {
-    if (target < docID) {
-      throw new IllegalArgumentException("cannot advance backwards: docID=" + docID + " target=" + target);
-    }
+    assert target >= docID: "target=" + target + " docID=" + docID;
     if (target == NO_MORE_DOCS) {
       this.docID = NO_MORE_DOCS;
     } else {
@@ -82,7 +77,7 @@ public final class LegacyNumericDocValuesWrapper extends NumericDocValues {
 
   @Override
   public long longValue() {
-    return values.get(docID);
+    return value;
   }
 
   @Override

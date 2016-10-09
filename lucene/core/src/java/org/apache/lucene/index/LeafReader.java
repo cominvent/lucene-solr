@@ -82,7 +82,7 @@ public abstract class LeafReader extends IndexReader {
      *  SegmentReader} has closed. The provided {@code
      *  ownerCoreCacheKey} will be the same key as the one
      *  returned by {@link LeafReader#getCoreCacheKey()}. */
-    public void onClose(Object ownerCoreCacheKey) throws IOException;
+    void onClose(Object ownerCoreCacheKey) throws IOException;
   }
 
   private static class CoreClosedListenerWrapper implements ReaderClosedListener {
