@@ -640,7 +640,7 @@ fi
 # TODO: Advertised in help?
 if [ "$SCRIPT_CMD" == "assert" ]; then
   run_tool assert $*
-  exit 1
+  exit $?
 fi
 
 # run a healthcheck and exit if requested
