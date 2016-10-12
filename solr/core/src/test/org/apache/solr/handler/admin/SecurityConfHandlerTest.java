@@ -224,8 +224,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
 
     @Override
     protected boolean persistConf(SecurityProps props) {
-      Object data = m.get("/security.json");
-      SecurityProps fromMap = (SecurityProps) data;
+      SecurityProps fromMap = m.get("/security.json");
       if (fromMap.getVersion() == props.getVersion()) {
         props.setVersion(props.getVersion()+1);
         m.put("/security.json", props);
