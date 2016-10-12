@@ -87,7 +87,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     SolrQueryResponse rsp = new SolrQueryResponse();
     handler.handleRequestBody(req, rsp);
     assertNull(rsp.getValues().get(CommandOperation.ERR_MSGS));
-    Map authzconf = (Map) ((ConfigData) handler.m.get("/security.json")).data.get("authorization");
+    Map authzconf = (Map) ((SecurityProps) handler.m.get("/security.json")).getData().get("authorization");
     Map userRoles = (Map) authzconf.get("user-role");
     List tomRoles = (List) userRoles.get("tom");
     assertTrue(tomRoles.contains("admin"));
@@ -109,7 +109,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     req.setContentStreams(Collections.singletonList(o));
     rsp = new SolrQueryResponse();
     handler.handleRequestBody(req, rsp);
-    authzconf = (Map) ((ConfigData) handler.m.get("/security.json")).data.get("authorization");
+    authzconf = (Map) ((SecurityProps) handler.m.get("/security.json")).getData().get("authorization");
     permissions = (List<Map>) authzconf.get("permissions");
 
     Map p = permissions.get(1);
@@ -129,7 +129,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     req.setContentStreams(Collections.singletonList(o));
     rsp = new SolrQueryResponse();
     handler.handleRequestBody(req, rsp);
-    authzconf = (Map) ((ConfigData) handler.m.get("/security.json")).data.get("authorization");
+    authzconf = (Map) ((SecurityProps) handler.m.get("/security.json")).getData().get("authorization");
     permissions = (List<Map>) authzconf.get("permissions");
 
     p = permissions.get(0);
@@ -152,7 +152,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     rsp = new SolrQueryResponse();
     handler.handleRequestBody(req, rsp);
     assertNull(rsp.getValues().get(CommandOperation.ERR_MSGS));
-    authzconf = (Map) ((ConfigData) handler.m.get("/security.json")).data.get("authorization");
+    authzconf = (Map) ((SecurityProps) handler.m.get("/security.json")).getData().get("authorization");
     userRoles = (Map) authzconf.get("user-role");
     assertEquals(0, userRoles.size());
     permissions = (List<Map>) authzconf.get("permissions");
@@ -220,7 +220,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
 
     @Override
     public SecurityProps getSecurityProps(boolean getFresh) {
-      return new SecurityProps().setData(m.get("/security.json"));
+      return (SecurityProps) m.get("/security.json");
     }
 
     @Override
@@ -261,7 +261,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
       req.setContentStreams(Collections.singletonList(o));
       SolrQueryResponse rsp = new SolrQueryResponse();
       handleRequestBody(req, rsp);
-      Map<String, Object> data = ((ConfigData) m.get("/security.json")).data;
+      Map<String, Object> data = ((SecurityProps) m.get("/security.json")).getData();
       ((Map)data.get("authentication")).remove("");
       ((Map)data.get("authorization")).remove("");
       return Utils.toJSONString (data);
