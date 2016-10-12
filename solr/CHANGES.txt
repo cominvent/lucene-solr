@@ -53,6 +53,10 @@ Optimizations
   check on every request and move connection lifecycle management towards the client.
   (Ryan Zezeski, Mark Miller, Shawn Heisey, Steve Davids)
 
+* SOLR-9579: Make Solr's SchemaField implement Lucene's IndexableFieldType, removing the 
+  creation of a Lucene FieldType every time a field is indexed. (John Call, yonik) 
+
+
 ==================  6.3.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release.
@@ -77,6 +81,10 @@ behavior; otherwise it won't stream.  Reminder: "method" is a hint that doesn't 
 
 * If you use the JSON Facet API (json.facet) to facet on a numeric field and if you use mincount=0 or if you set the
 prefix, then you will now get an error as these options are incompatible with numeric faceting.
+
+* Solr's logging verbosity at the INFO level has been greatly reduced, and
+  you may need to update the log configs to use the DEBUG level to get the
+  same logging messages as before.
 
 New Features
 ----------------------
@@ -103,6 +111,21 @@ New Features
 * SOLR-9558: DIH TemplateTransformerto to support multivalued fields (Ted Sullivan via noble)
 
 * SOLR-9557: Every implicit requesthandler now has a default 'useParams' attribute (noble)
+
+* SOLR-9572: config API to show expanded useParams for request handlers inline (noble)
+
+* SOLR-9258: Optimizing, storing and deploying AI models with Streaming Expressions (Cao Manh Dat, Joel Bernstein)
+
+* SOLR-9205: Added method LukeResponse.getSchemaFlags() which returns field
+  information as an EnumSet (Fengtan, Alan Woodward)
+
+* SOLR-9520: Kerberos delegation support in SolrJ (Ishan Chattopadhyaya, noble)
+
+* SOLR-9146: Parallel SQL engine should support >, >=, <, <=, <>, != syntax (Timothy Potter, Joel Bernstein, Kevin Risden)
+
+* SOLR-9337: Add fetch Streaming Expression (Joel Bernstein)
+
+* SOLR-9103: Restore ability for users to add custom Streaming Expressions (Cao Manh Dat)
 
 * SOLR-9481: Authentication and Authorization plugins now work in standalone mode if security.json is placed in
   SOLR_HOME on every node. Editing through API is not supported. (janhoy)
@@ -131,6 +154,26 @@ Bug Fixes
 
 * SOLR-9330: Fix AlreadyClosedException on admin/mbeans?stats=true (Mikhail Khludnev)
 
+* SOLR-9411: Better validation for Schema API add-field and add-dynamic-field (janhoy, Steve Rowe)
+
+* SOLR-9504: A replica with an empty index becomes the leader even when other more qualified replicas
+  are in line. (shalin)
+
+* SOLR-9554: Fix NullPointerException when cores are loaded in parallel and switch schema.xml to managed-scheme.
+ (Alan Woodward, Mikhail Khludnev)
+
+* SOLR-9556: OverseerAutoFailoverReplicaThread was not exiting on interrupt
+  (Alan Woodward)
+
+* SOLR-9563: Collection creation could fail if an ADDREPLICA subrequest arrived
+  at a node before its local state had updated with the new collection data
+  (Alan Woodward)
+
+* SOLR-9278: Index replication interactions with IndexWriter can cause deadlock. (Xunlong via Mark Miller)
+
+* SOLR-9604: Pooled SSL connections were not being re-used (Alan Woodward,
+  Mikhail Khludnev, hossman)
+
 Optimizations
 ----------------------
 
@@ -148,6 +191,11 @@ Optimizations
 
 * SOLR-9446: Leader failure after creating a freshly replicated index can send nodes into recovery even if
   index was not changed (Pushkar Raste, noble)
+
+* SOLR-9592: retrieving docValues as stored values was sped up by using the proper leaf
+  reader rather than ask for a global view.  In extreme cases, this leads to a 100x speedup.
+  (Takahiro Ishikawa, yonik)
+
 
 Other Changes
 ----------------------
@@ -188,7 +236,8 @@ Other Changes
 * SOLR-9544: Allow ObjectReleaseTracker more time to check for asynchronously
   closing resources (Alan Woodward)
 
-* SOLR-6677: Reduced logging during Solr startup, moved more logs to DEBUG level (janhoy, Shawn Heisey)
+* SOLR-6677: Reduced logging during startup and shutdown, moved more logs to DEBUG level
+  (janhoy, Shawn Heisey, Alan Woodward)
 
 * SOLR-6090: Remove unreachable printLayout usage in cloud tests. (Cao Manh Dat via shalin)
 
@@ -199,6 +248,31 @@ Other Changes
   Woodward)
 
 * SOLR-9548: The beginning of solr.log now starts with a more informative welcome message (janhoy)
+
+* SOLR-9547: Do not allow bin/solr start as root user, unless -force param specified (janhoy)
+
+* SOLR-9567: Make ReRankQParserPlugin's private ReRankCollector a public class of its own. (Christine Poerschke)
+
+* SOLR-7436: Solr stops printing stacktraces in log and output (janhoy, hossman, Markus Jelsma)
+
+* SOLR-9576: Make FieldAnalysisRequestHandler, DocumentAnalysisRequestHandler & DumpRequestHandler
+  implicit (noble)
+
+* SOLR-9574: Factor out AbstractReRankQuery from ReRankQParserPlugin's private ReRankQuery. (Christine Poerschke)
+
+* SOLR-5041: Add a test to make sure that a leader always recovers from log on startup. (Cao Manh Dat, shalin)
+
+* SOLR-9588: Remove Guava dependency from SolrJ (Ishan Chattopadhyaya, noble)
+
+* SOLR-8140: Remove mentions of unimplemented admin-extra from the new Admin UI (Alexandre Rafalovitch)
+
+* SOLR-9589: Remove jackson dependency from SolrJ (Ishan Chattopadhyaya, noble)
+
+* SOLR-8385: Narrow StreamFactory.withFunctionName clazz parameter to prevent misconfiguration (Jason Gerlowski, Kevin Risden)
+
+* SOLR-8969: SQLHandler causes NPE in non-cloud mode (Markus Jelsma, Kevin Risden)
+
+* SOLR-9610: New AssertTool in SolrCLI for easier cross platform assertions from command line (janhoy)
 
 ==================  6.2.1 ==================
 
