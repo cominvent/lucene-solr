@@ -159,7 +159,9 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
    */
   public static class SecurityProps {
     private Map<String, Object> data = Collections.EMPTY_MAP;
-    private int version = 0;
+    private int version = -1;
+
+    public SecurityProps() {}
 
     public SecurityProps setData(Map<String, Object> data) {
       this.data = data;
