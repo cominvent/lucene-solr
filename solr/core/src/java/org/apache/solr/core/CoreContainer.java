@@ -62,6 +62,8 @@ import org.apache.solr.handler.admin.ConfigSetsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.admin.SecurityConfHandler;
+import org.apache.solr.handler.admin.SecurityConfHandlerLocal;
+import org.apache.solr.handler.admin.SecurityConfHandlerZk;
 import org.apache.solr.handler.admin.ZookeeperInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
@@ -465,14 +467,11 @@ public class CoreContainer {
 
     MDCLoggingContext.setNode(this);
 
-    Map<String, Object> securityConfig = getSecurityProps(false);
-    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.get("authorization"));
-    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.get("authentication"));
-
+    securityConfHandler = isZooKeeperAware() ? new SecurityConfHandlerZk(this) : new SecurityConfHandlerLocal(this);
+    reloadSecurityProperties();
     this.backupRepoFactory = new BackupRepositoryFactory(cfg.getBackupRepositoryPlugins());
 
     containerHandlers.put(ZK_PATH, new ZookeeperInfoHandler(this));
-    securityConfHandler = new SecurityConfHandler(this);
     collectionsHandler = createHandler(cfg.getCollectionsHandlerClass(), CollectionsHandler.class);
     containerHandlers.put(COLLECTIONS_HANDLER_PATH, collectionsHandler);
     infoHandler        = createHandler(cfg.getInfoHandlerClass(), InfoHandler.class);
@@ -568,28 +567,18 @@ public class CoreContainer {
     }
   }
 
-  public Map<String, Object> getSecurityProps(boolean fresh) {
-    return isZooKeeperAware() ?
-        getZkController().getZkStateReader().getSecurityProps(fresh).data :
-        getSecurityPropsLocal();
-  }
-
-  private Map<String, Object> getSecurityPropsLocal() {
-    Path securityJson = SolrResourceLoader.locateSolrHome().resolve("security.json");
-    if (Files.exists(securityJson)) {
-      try (InputStream securityJsonIs = Files.newInputStream(securityJson)) {
-        log.info("Using local version of security.json from Solr home");
-        return (Map<String, Object>) Utils.fromJSON(securityJsonIs);
-      } catch (IOException e) { /* Fall through */ }
-    }
-    return EMPTY_MAP;
-  }
-
   public void securityNodeChanged() {
     log.info("Security node changed");
-    Map<String, Object> securityConfig = getSecurityProps(false);
-    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.get("authorization"));
-    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.get("authentication"));
+    reloadSecurityProperties();
+  }
+
+  /**
+   * Make sure securityConfHandler is initialized
+   */
+  private void reloadSecurityProperties() {
+    SecurityConfHandler.SecurityProps securityConfig = securityConfHandler.getSecurityProps(false);
+    initializeAuthorizationPlugin((Map<String, Object>) securityConfig.getData().get("authorization"));
+    initializeAuthenticationPlugin((Map<String, Object>) securityConfig.getData().get("authentication"));
   }
 
   private static void checkForDuplicateCoreNames(List<CoreDescriptor> cds) {
