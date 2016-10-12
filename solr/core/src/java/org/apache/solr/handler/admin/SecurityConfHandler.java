@@ -95,7 +95,8 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
     }
     for (; ; ) {
       SecurityProps securityProps = getSecurityProps(true);
-      Map<String, Object> latestConf = (Map<String, Object>) securityProps.getData().get(key);
+      Map<String, Object> data = securityProps.getData();
+      Map<String, Object> latestConf = (Map<String, Object>) data.get(key);
       if (latestConf == null) {
         throw new SolrException(SERVER_ERROR, "No configuration present for " + key);
       }
@@ -113,7 +114,11 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
         if(!Objects.equals(latestConf.get("class") , out.get("class"))){
           throw new SolrException(SERVER_ERROR, "class cannot be modified");
         }
-        if(persistConf(new SecurityProps().setData(out).setVersion(securityProps.version+1))) return;
+        Map meta = getMapValue(out, "");
+        meta.put("v", securityProps.getVersion()+1);//encode the expected zkversion
+        data.put(key, out);
+        
+        if(persistConf(securityProps)) return;
       }
     }
   }
