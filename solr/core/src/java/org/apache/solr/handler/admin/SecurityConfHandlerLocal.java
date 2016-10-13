@@ -93,4 +93,10 @@ public class SecurityConfHandlerLocal extends SecurityConfHandler {
   public String getDescription() {
     return "Edit or read security configuration locally in SOLR_HOME";
   }
+
+  @Override
+  protected void securityConfEdited() {
+    // Need to call explicitly since we will not get notified of changes to local security.json
+    cores.securityNodeChanged();
+  }
 }

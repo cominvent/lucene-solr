@@ -1,275 +1,238 @@
-///*
-// * Licensed to the Apache Software Foundation (ASF) under one or more
-// * contributor license agreements.  See the NOTICE file distributed with
-// * this work for additional information regarding copyright ownership.
-// * The ASF licenses this file to You under the Apache License, Version 2.0
-// * (the "License"); you may not use this file except in compliance with
-// * the License.  You may obtain a copy of the License at
-// *
-// *     http://www.apache.org/licenses/LICENSE-2.0
-// *
-// * Unless required by applicable law or agreed to in writing, software
-// * distributed under the License is distributed on an "AS IS" BASIS,
-// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// * See the License for the specific language governing permissions and
-// * limitations under the License.
-// */
-//package org.apache.solr.security;
-//
-//import java.io.ByteArrayInputStream;
-//import java.io.ByteArrayOutputStream;
-//import java.io.IOException;
-//import java.io.PrintStream;
-//import java.lang.invoke.MethodHandles;
-//import java.nio.charset.StandardCharsets;
-//import java.util.ArrayList;
-//import java.util.Collections;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.Objects;
-//import java.util.Random;
-//import java.util.function.Predicate;
-//
-//import org.apache.http.HttpResponse;
-//import org.apache.http.client.HttpClient;
-//import org.apache.http.client.methods.HttpGet;
-//import org.apache.http.client.methods.HttpPost;
-//import org.apache.http.entity.ByteArrayEntity;
-//import org.apache.http.message.AbstractHttpMessage;
-//import org.apache.http.message.BasicHeader;
-//import org.apache.http.util.EntityUtils;
-//import org.apache.solr.SolrTestCaseJ4;
-//import org.apache.solr.client.solrj.SolrRequest;
-//import org.apache.solr.client.solrj.embedded.JettySolrRunner;
-//import org.apache.solr.client.solrj.impl.HttpClientUtil;
-//import org.apache.solr.client.solrj.impl.HttpSolrClient;
-//import org.apache.solr.client.solrj.request.CollectionAdminRequest;
-//import org.apache.solr.client.solrj.request.GenericSolrRequest;
-//import org.apache.solr.client.solrj.request.UpdateRequest;
-//import org.apache.solr.cloud.SolrCloudTestCase;
-//import org.apache.solr.common.SolrInputDocument;
-//import org.apache.solr.common.cloud.DocCollection;
-//import org.apache.solr.common.cloud.Replica;
-//import org.apache.solr.common.cloud.Slice;
-//import org.apache.solr.common.params.ModifiableSolrParams;
-//import org.apache.solr.common.util.Base64;
-//import org.apache.solr.common.util.ContentStreamBase;
-//import org.apache.solr.common.util.NamedList;
-//import org.apache.solr.common.util.StrUtils;
-//import org.apache.solr.common.util.Utils;
-//import org.apache.solr.servlet.DirectSolrConnection;
-//import org.apache.solr.util.AbstractSolrTestCase;
-//import org.apache.solr.util.SolrCLI;
-//import org.junit.BeforeClass;
-//import org.junit.Test;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
-//
-//import static java.nio.charset.StandardCharsets.UTF_8;
-//import static java.util.Collections.singletonMap;
-//
-//public class BasicAuthStandaloneTest extends AbstractSolrTestCase {
-//
-//  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-//
-//  DirectSolrConnection direct;
-//
-//  @BeforeClass
-//  public static void setupCluster() throws Exception {
-//    initCore("solrconfig.xml", "schema.xml");
-//  }
-//
-//  @Override
-//  public void setUp() throws Exception
-//  {
-//    super.setUp();
-//    direct = new DirectSolrConnection(h.getCore());
-//  }
-//
-//  @Test
-//  public void testBasicAuth() throws Exception {
-//
-//    String authcPrefix = "/admin/authentication";
-//    String authzPrefix = "/admin/authorization";
-//
-//    NamedList<Object> rsp;
-//    HttpClient cl = null;
-//    try {
-//      cl = HttpClientUtil.createClient(null);
-//      String baseUrl = "http://127.0.0.1:8983/solr";
-//
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "/errorMessages", null, 20);
-//
-//      // Write security.json locally
-//      //zkClient().setData("/security.json", STD_CONF.replaceAll("'", "\"").getBytes(UTF_8), true);
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/class", "solr.BasicAuthPlugin", 20);
-//
-//
-//      randomJetty.stop();
-//      randomJetty.start();
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/class", "solr.BasicAuthPlugin", 20);
-//
-//      String command = "{\n" +
-//          "'set-user': {'harry':'HarryIsCool'}\n" +
-//          "}";
-//
-//      GenericSolrRequest genericReq = new GenericSolrRequest(SolrRequest.METHOD.POST, authcPrefix, new ModifiableSolrParams());
-//      genericReq.setContentStreams(Collections.singletonList(new ContentStreamBase.ByteArrayStream(command.getBytes(UTF_8), "")));
-//
-//      HttpSolrClient.RemoteSolrException exp = expectThrows(HttpSolrClient.RemoteSolrException.class, () -> {
-//        cluster.getSolrClient().request(genericReq);
-//      });
-//      assertEquals(401, exp.code());
-//
-//      command = "{\n" +
-//          "'set-user': {'harry':'HarryIsUberCool'}\n" +
-//          "}";
-//
-//      HttpPost httpPost = new HttpPost(baseUrl + authcPrefix);
-//      setBasicAuthHeader(httpPost, "solr", "SolrRocks");
-//      httpPost.setEntity(new ByteArrayEntity(command.getBytes(UTF_8)));
-//      httpPost.addHeader("Content-Type", "application/json; charset=UTF-8");
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication.enabled", "true", 20);
-//      HttpResponse r = cl.execute(httpPost);
-//      int statusCode = r.getStatusLine().getStatusCode();
-//      Utils.consumeFully(r.getEntity());
-//      assertEquals("proper_cred sent, but access denied", 200, statusCode);
-//
-//      baseUrl = cluster.getRandomJetty(random()).getBaseUrl().toString();
-//
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/credentials/harry", NOT_NULL_PREDICATE, 20);
-//      command = "{\n" +
-//          "'set-user-role': {'harry':'admin'}\n" +
-//          "}";
-//
-//      executeCommand(baseUrl + authzPrefix, cl,command, "solr", "SolrRocks");
-//
-//      baseUrl = cluster.getRandomJetty(random()).getBaseUrl().toString();
-//      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/user-role/harry", NOT_NULL_PREDICATE, 20);
-//
-//      executeCommand(baseUrl + authzPrefix, cl, Utils.toJSONString(singletonMap("set-permission", Utils.makeMap
-//          ("collection", "x",
-//              "path", "/update/*",
-//              "role", "dev"))), "harry", "HarryIsUberCool" );
-//
-//      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[1]/collection", "x", 20);
-//
-//      executeCommand(baseUrl + authzPrefix, cl,Utils.toJSONString(singletonMap("set-permission", Utils.makeMap
-//          ("name", "collection-admin-edit", "role", "admin"))), "harry", "HarryIsUberCool"  );
-//      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[2]/name", "collection-admin-edit", 20);
-//
-//      CollectionAdminRequest.Reload reload = CollectionAdminRequest.reloadCollection(COLLECTION);
-//
-//      try (HttpSolrClient solrClient = getHttpSolrClient(baseUrl)) {
-//        try {
-//          rsp = solrClient.request(reload);
-//          fail("must have failed");
-//        } catch (HttpSolrClient.RemoteSolrException e) {
-//
-//        }
-//        reload.setMethod(SolrRequest.METHOD.POST);
-//        try {
-//          rsp = solrClient.request(reload);
-//          fail("must have failed");
-//        } catch (HttpSolrClient.RemoteSolrException e) {
-//
-//        }
-//      }
-//      cluster.getSolrClient().request(CollectionAdminRequest.reloadCollection(COLLECTION)
-//          .setBasicAuthCredentials("harry", "HarryIsUberCool"));
-//
-//      try {
-//        cluster.getSolrClient().request(CollectionAdminRequest.reloadCollection(COLLECTION)
-//            .setBasicAuthCredentials("harry", "Cool12345"));
-//        fail("This should not succeed");
-//      } catch (HttpSolrClient.RemoteSolrException e) {
-//
-//      }
-//
-//      executeCommand(baseUrl + authzPrefix, cl,"{set-permission : { name : update , role : admin}}", "harry", "HarryIsUberCool");
-//
-//      SolrInputDocument doc = new SolrInputDocument();
-//      doc.setField("id","4");
-//      UpdateRequest update = new UpdateRequest();
-//      update.setBasicAuthCredentials("harry","HarryIsUberCool");
-//      update.add(doc);
-//      update.setCommitWithin(100);
-//      cluster.getSolrClient().request(update, COLLECTION);
-//
-//
-//      executeCommand(baseUrl + authcPrefix, cl, "{set-property : { blockUnknown: true}}", "harry", "HarryIsUberCool");
-//      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/blockUnknown", "true", 20, "harry", "HarryIsUberCool");
-//      verifySecurityStatus(cl, baseUrl + PKIAuthenticationPlugin.PATH + "?wt=json", "key", NOT_NULL_PREDICATE, 20);
-//
-//      String[] toolArgs = new String[]{
-//          "status", "-solr", baseUrl};
-//      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//      PrintStream stdoutSim = new PrintStream(baos, true, StandardCharsets.UTF_8.name());
-//      SolrCLI.StatusTool tool = new SolrCLI.StatusTool(stdoutSim);
-//      try {
-//        System.setProperty("basicauth", "harry:HarryIsUberCool");
-//        tool.runTool(SolrCLI.processCommandLineArgs(SolrCLI.joinCommonAndToolOptions(tool.getOptions()), toolArgs));
-//        Map obj = (Map) Utils.fromJSON(new ByteArrayInputStream(baos.toByteArray()));
-//        assertTrue(obj.containsKey("version"));
-//        assertTrue(obj.containsKey("startTime"));
-//        assertTrue(obj.containsKey("uptime"));
-//        assertTrue(obj.containsKey("memory"));
-//      } catch (Exception e) {
-//        log.error("RunExampleTool failed due to: " + e +
-//            "; stdout from tool prior to failure: " + baos.toString(StandardCharsets.UTF_8.name()));
-//      }
-//      executeCommand(baseUrl + authcPrefix, cl, "{set-property : { blockUnknown: false}}", "harry", "HarryIsUberCool");
-//    } finally {
-//      if (cl != null) {
-//        HttpClientUtil.close(cl);
-//      }
-//    }
-//  }
-//
-//  public static void executeCommand(String url, HttpClient cl, String payload, String user, String pwd)
-//      throws IOException {
-//    HttpPost httpPost;
-//    HttpResponse r;
-//    httpPost = new HttpPost(url);
-//    setBasicAuthHeader(httpPost, user, pwd);
-//    httpPost.setEntity(new ByteArrayEntity(payload.getBytes(UTF_8)));
-//    httpPost.addHeader("Content-Type", "application/json; charset=UTF-8");
-//    r = cl.execute(httpPost);
-//    assertEquals(200, r.getStatusLine().getStatusCode());
-//    Utils.consumeFully(r.getEntity());
-//  }
-//
-//
-//
-//  public static void setBasicAuthHeader(AbstractHttpMessage httpMsg, String user, String pwd) {
-//    String userPass = user + ":" + pwd;
-//    String encoded = Base64.byteArrayToBase64(userPass.getBytes(UTF_8));
-//    httpMsg.setHeader(new BasicHeader("Authorization", "Basic " + encoded));
-//    log.info("Added Basic Auth security Header {}",encoded );
-//  }
-//
-//  public static Replica getRandomReplica(DocCollection coll, Random random) {
-//    ArrayList<Replica> l = new ArrayList<>();
-//
-//    for (Slice slice : coll.getSlices()) {
-//      for (Replica replica : slice.getReplicas()) {
-//        l.add(replica);
-//      }
-//    }
-//    Collections.shuffle(l, random);
-//    return l.isEmpty() ? null : l.get(0);
-//  }
-//
-//  static final Predicate NOT_NULL_PREDICATE = o -> o != null;
-//
-//  //the password is 'SolrRocks'
-//  //this could be generated everytime. But , then we will not know if there is any regression
-//  private static final String STD_CONF = "{\n" +
-//      "  'authentication':{\n" +
-//      "    'class':'solr.BasicAuthPlugin',\n" +
-//      "    'credentials':{'solr':'orwp2Ghgj39lmnrZOTm7Qtre1VqHFDfwAEzr0ApbN3Y= Ju5osoAqOX8iafhWpPP01E5P+sg8tK8tHON7rCYZRRw='}},\n" +
-//      "  'authorization':{\n" +
-//      "    'class':'solr.RuleBasedAuthorizationPlugin',\n" +
-//      "    'user-role':{'solr':'admin'},\n" +
-//      "    'permissions':[{'name':'security-edit','role':'admin'}]}}";
-//}
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.solr.security;
+
+import java.io.File;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Properties;
+import java.util.Random;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.message.AbstractHttpMessage;
+import org.apache.http.message.BasicHeader;
+import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.embedded.JettySolrRunner;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.GenericSolrRequest;
+import org.apache.solr.common.cloud.DocCollection;
+import org.apache.solr.common.cloud.Replica;
+import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.util.Base64;
+import org.apache.solr.common.util.ContentStreamBase;
+import org.apache.solr.common.util.Utils;
+import org.apache.solr.handler.admin.SecurityConfHandler;
+import org.apache.solr.handler.admin.SecurityConfHandlerLocalForTest;
+import org.apache.solr.util.AbstractSolrTestCase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.solr.security.BasicAuthIntegrationTest.NOT_NULL_PREDICATE;
+import static org.apache.solr.security.BasicAuthIntegrationTest.STD_CONF;
+import static org.apache.solr.security.BasicAuthIntegrationTest.verifySecurityStatus;
+
+public class BasicAuthStandaloneTest extends AbstractSolrTestCase {
+
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final String CONF_DIR = "solr/configsets/configset-2/conf/";
+  private static final String ROOT_DIR = "solr/";
+
+  SecurityConfHandlerLocalForTest securityConfHandler;
+  SolrInstance instance = null;
+  JettySolrRunner jetty;
+      
+  @Before
+  @Override
+  public void setUp() throws Exception
+  {
+    super.setUp();
+    instance = new SolrInstance("inst", null);
+    instance.setUp();
+    System.setProperty("solr.solr.home", instance.getHomeDir());    
+    jetty = createJetty(instance);
+    initCore("solrconfig.xml", "schema.xml", instance.getHomeDir());
+    securityConfHandler = new SecurityConfHandlerLocalForTest(jetty.getCoreContainer());
+  }
+
+  @Override
+  @After
+  public void tearDown() throws Exception {
+    jetty.stop();
+    super.tearDown();
+  }
+
+  @Test
+  public void testBasicAuth() throws Exception {
+
+    String authcPrefix = "/admin/authentication";
+
+    HttpClient cl = null;
+    HttpSolrClient httpSolrClient = null;
+    try {
+      cl = HttpClientUtil.createClient(null);
+      String baseUrl = buildUrl(jetty.getLocalPort(), "/solr"); 
+      httpSolrClient = getHttpSolrClient(baseUrl);
+      
+      verifySecurityStatus(cl, baseUrl + authcPrefix, "/errorMessages", null, 20);
+
+      // Write security.json locally. Should cause security to be initialized
+      securityConfHandler.persistConf(new SecurityConfHandler.SecurityProps()
+          .setData(Utils.fromJSONString(STD_CONF.replaceAll("'", "\""))));
+      securityConfHandler.securityConfEdited();
+      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/class", "solr.BasicAuthPlugin", 20);
+
+      String command = "{\n" +
+          "'set-user': {'harry':'HarryIsCool'}\n" +
+          "}";
+
+      GenericSolrRequest genericReq = new GenericSolrRequest(SolrRequest.METHOD.POST, authcPrefix, new ModifiableSolrParams());
+      genericReq.setContentStreams(Collections.singletonList(new ContentStreamBase.ByteArrayStream(command.getBytes(UTF_8), "")));
+
+      HttpSolrClient finalHttpSolrClient = httpSolrClient;
+      HttpSolrClient.RemoteSolrException exp = expectThrows(HttpSolrClient.RemoteSolrException.class, () -> {
+        finalHttpSolrClient.request(genericReq);
+      });
+      assertEquals(401, exp.code());
+
+      command = "{\n" +
+          "'set-user': {'harry':'HarryIsUberCool'}\n" +
+          "}";
+
+      HttpPost httpPost = new HttpPost(baseUrl + authcPrefix);
+      setBasicAuthHeader(httpPost, "solr", "SolrRocks");
+      httpPost.setEntity(new ByteArrayEntity(command.getBytes(UTF_8)));
+      httpPost.addHeader("Content-Type", "application/json; charset=UTF-8");
+      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication.enabled", "true", 20);
+      HttpResponse r = cl.execute(httpPost);
+      int statusCode = r.getStatusLine().getStatusCode();
+      Utils.consumeFully(r.getEntity());
+      assertEquals("proper_cred sent, but access denied", 200, statusCode);
+
+      verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/credentials/harry", NOT_NULL_PREDICATE, 20);
+
+      // Read file from SOLR_HOME and verify that it contains our new user
+      assertTrue(new String(Utils.toJSON(securityConfHandler.getSecurityProps(false).getData())).contains("harry"));
+    } finally {
+      if (cl != null) {
+        HttpClientUtil.close(cl);
+        httpSolrClient.close();
+      }
+    }
+  }
+
+  public static void setBasicAuthHeader(AbstractHttpMessage httpMsg, String user, String pwd) {
+    String userPass = user + ":" + pwd;
+    String encoded = Base64.byteArrayToBase64(userPass.getBytes(UTF_8));
+    httpMsg.setHeader(new BasicHeader("Authorization", "Basic " + encoded));
+    log.info("Added Basic Auth security Header {}",encoded );
+  }
+
+  public static Replica getRandomReplica(DocCollection coll, Random random) {
+    ArrayList<Replica> l = new ArrayList<>();
+
+    for (Slice slice : coll.getSlices()) {
+      for (Replica replica : slice.getReplicas()) {
+        l.add(replica);
+      }
+    }
+    Collections.shuffle(l, random);
+    return l.isEmpty() ? null : l.get(0);
+  }
+  
+  private JettySolrRunner createJetty(SolrInstance instance) throws Exception {
+    Properties nodeProperties = new Properties();
+    nodeProperties.setProperty("solr.data.dir", instance.getDataDir());
+    JettySolrRunner jetty = new JettySolrRunner(instance.getHomeDir(), nodeProperties, buildJettyConfig("/solr"));
+    jetty.start();
+    return jetty;
+  }
+  
+  
+  private class SolrInstance {
+    String name;
+    Integer port;
+    File homeDir;
+    File confDir;
+    File dataDir;
+    
+    /**
+     * if masterPort is null, this instance is a master -- otherwise this instance is a slave, and assumes the master is
+     * on localhost at the specified port.
+     */
+    public SolrInstance(String name, Integer port) {
+      this.name = name;
+      this.port = port;
+    }
+
+    public String getHomeDir() {
+      return homeDir.toString();
+    }
+
+    public String getSchemaFile() {
+      return CONF_DIR + "schema.xml";
+    }
+
+    public String getConfDir() {
+      return confDir.toString();
+    }
+
+    public String getDataDir() {
+      return dataDir.toString();
+    }
+
+    public String getSolrConfigFile() {
+      return CONF_DIR + "solrconfig.xml";
+    }
+
+    public String getSolrXmlFile() {
+      return ROOT_DIR + "solr.xml";
+    }
+
+
+    public void setUp() throws Exception {
+      homeDir = createTempDir("inst").toFile();
+      dataDir = new File(homeDir + "/collection1", "data");
+      confDir = new File(homeDir + "/collection1", "conf");
+
+      homeDir.mkdirs();
+      dataDir.mkdirs();
+      confDir.mkdirs();
+
+      FileUtils.copyFile(getFile(getSolrXmlFile()), new File(homeDir, "solr.xml"));
+      File f = new File(confDir, "solrconfig.xml");
+      FileUtils.copyFile(getFile(getSolrConfigFile()), f);
+      f = new File(confDir, "schema.xml");
+
+      FileUtils.copyFile(getFile(getSchemaFile()), f);
+
+      Files.createFile(homeDir.toPath().resolve("collection1/core.properties"));
+    }
+
+  }
+}

@@ -118,10 +118,18 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
         meta.put("v", securityProps.getVersion()+1);//encode the expected zkversion
         data.put(key, out);
         
-        if(persistConf(securityProps)) return;
+        if(persistConf(securityProps)) {
+          securityConfEdited();
+          return;
+        }
       }
     }
   }
+
+  /**
+   * Hook where you can do stuff after a config has been edited. Defaults to NOP
+   */
+  protected void securityConfEdited() {}
 
   Object getPlugin(String key) {
     Object plugin = null;
