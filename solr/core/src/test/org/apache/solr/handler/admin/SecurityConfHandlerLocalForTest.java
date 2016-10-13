@@ -29,8 +29,8 @@ public class SecurityConfHandlerLocalForTest extends SecurityConfHandlerLocal {
     super(coreContainer);
   }
 
-  public boolean persistConf(SecurityProps securityProps) throws IOException {
-    return super.persistConf(securityProps);
+  public boolean persistConf(SecurityConfig securityConfig) throws IOException {
+    return super.persistConf(securityConfig);
   }
   
   public void securityConfEdited() {

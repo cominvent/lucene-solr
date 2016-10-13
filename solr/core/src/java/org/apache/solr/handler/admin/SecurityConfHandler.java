@@ -18,6 +18,7 @@ package org.apache.solr.handler.admin;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -37,10 +38,13 @@ import org.apache.solr.security.AuthorizationContext;
 import org.apache.solr.security.ConfigEditablePlugin;
 import org.apache.solr.security.PermissionNameProvider;
 import org.apache.solr.util.CommandOperation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.solr.common.SolrException.ErrorCode.SERVER_ERROR;
 
 public abstract class SecurityConfHandler extends RequestHandlerBase implements PermissionNameProvider {
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   protected CoreContainer cores;
 
   public SecurityConfHandler(CoreContainer coreContainer) {
@@ -94,8 +98,8 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
       throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "No commands");
     }
     for (; ; ) {
-      SecurityProps securityProps = getSecurityProps(true);
-      Map<String, Object> data = securityProps.getData();
+      SecurityConfig securityConfig = getSecurityConfig(true);
+      Map<String, Object> data = securityConfig.getData();
       Map<String, Object> latestConf = (Map<String, Object>) data.get(key);
       if (latestConf == null) {
         throw new SolrException(SERVER_ERROR, "No configuration present for " + key);
@@ -108,17 +112,17 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
           rsp.add(CommandOperation.ERR_MSGS, errs);
           return;
         }
-        //no edits
+        log.debug("No edits made");
         return;
       } else {
         if(!Objects.equals(latestConf.get("class") , out.get("class"))){
           throw new SolrException(SERVER_ERROR, "class cannot be modified");
         }
         Map meta = getMapValue(out, "");
-        meta.put("v", securityProps.getVersion()+1);//encode the expected zkversion
+        meta.put("v", securityConfig.getVersion()+1);//encode the expected zkversion
         data.put(key, out);
         
-        if(persistConf(securityProps)) {
+        if(persistConf(securityConfig)) {
           securityConfEdited();
           return;
         }
@@ -160,28 +164,40 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
   /**
    * Gets security.json from source
    */
-  public abstract SecurityProps getSecurityProps(boolean getFresh);
+  public abstract SecurityConfig getSecurityConfig(boolean getFresh);
 
   /**
    * Persist security.json to the source, optionally with a version
    */
-  protected abstract boolean persistConf(SecurityProps securityProps) throws IOException;
+  protected abstract boolean persistConf(SecurityConfig securityConfig) throws IOException;
 
   /**
-   * Object to hold security.json as nested <code>Map&lt;String,Object&gt;</code> and optionally its version
+   * Object to hold security.json as nested <code>Map&lt;String,Object&gt;</code> and optionally its version.
+   * The version property is optional and defaults to -1 if not initialized.
+   * The data object defaults to EMPTY_MAP if not set
    */
-  public static class SecurityProps {
+  public static class SecurityConfig {
     private Map<String, Object> data = Collections.EMPTY_MAP;
     private int version = -1;
 
-    public SecurityProps() {}
+    public SecurityConfig() {}
 
-    public SecurityProps setData(Map<String, Object> data) {
+    /**
+     * Sets the data as a Map
+     * @param data a Map
+     * @return SecurityConf object (builder pattern)
+     */
+    public SecurityConfig setData(Map<String, Object> data) {
       this.data = data;
       return this;
     }
 
-    public SecurityProps setData(Object data) {
+    /**
+     * Sets the data as an Object, but the object needs to be of type Map
+     * @param data an Object of type Map&lt;String,Object&gt;
+     * @return SecurityConf object (builder pattern)
+     */
+    public SecurityConfig setData(Object data) {
       if (data instanceof Map) {
         this.data = (Map<String, Object>) data;
         return this;
@@ -190,7 +206,12 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
       }
     }
 
-    public SecurityProps setVersion(int version) {
+    /**
+     * Sets version
+     * @param version integer for version. Depends on underlying storage
+     * @return SecurityConf object (builder pattern)
+     */
+    public SecurityConfig setVersion(int version) {
       this.version = version;
       return this;
     }
@@ -208,7 +229,7 @@ public abstract class SecurityConfHandler extends RequestHandlerBase implements 
      * @param securityJsonInputStream an input stream for security.json
      * @return this (builder pattern)
      */
-    public SecurityProps setData(InputStream securityJsonInputStream) {
+    public SecurityConfig setData(InputStream securityJsonInputStream) {
       return setData(Utils.fromJSON(securityJsonInputStream));
     }
   }

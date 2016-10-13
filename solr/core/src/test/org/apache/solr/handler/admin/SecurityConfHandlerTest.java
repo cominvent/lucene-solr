@@ -33,7 +33,7 @@ import org.apache.solr.security.RuleBasedAuthorizationPlugin;
 import org.apache.solr.util.CommandOperation;
 
 import static org.apache.solr.common.util.Utils.makeMap;
-import static org.apache.solr.handler.admin.SecurityConfHandler.SecurityProps;
+import static org.apache.solr.handler.admin.SecurityConfHandler.SecurityConfig;
 
 public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
 
@@ -51,7 +51,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     handler.handleRequestBody(req,new SolrQueryResponse());
 
     BasicAuthPlugin basicAuth = new BasicAuthPlugin();
-    SecurityProps securityCfg = handler.m.get("/security.json");
+    SecurityConfig securityCfg = handler.m.get("/security.json");
     basicAuth.init((Map<String, Object>) securityCfg.getData().get("authentication"));
     assertTrue(basicAuth.authenticate("tom", "TomIsUberCool"));
 
@@ -178,7 +178,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
 
 
   public static class MockSecurityHandler extends SecurityConfHandler {
-    private Map<String, SecurityProps> m;
+    private Map<String, SecurityConfig> m;
     final BasicAuthPlugin basicAuthPlugin = new BasicAuthPlugin();
     final RuleBasedAuthorizationPlugin rulesBasedAuthorizationPlugin = new RuleBasedAuthorizationPlugin();
 
@@ -186,7 +186,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     public MockSecurityHandler() {
       super(null);
       m = new HashMap<>();
-      SecurityProps sp = new SecurityProps();
+      SecurityConfig sp = new SecurityConfig();
       sp.setData(makeMap("authentication", makeMap("class", "solr."+ BasicAuthPlugin.class.getSimpleName())));
       sp.setVersion(1);
       sp.getData().put("authorization", makeMap("class", "solr."+RuleBasedAuthorizationPlugin.class.getSimpleName()));
@@ -197,7 +197,7 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
       rulesBasedAuthorizationPlugin.init(new HashMap<>());
     }
 
-    public Map<String, SecurityProps> getM() {
+    public Map<String, SecurityConfig> getM() {
       return m;
     }
 
@@ -218,13 +218,13 @@ public class SecurityConfHandlerTest extends SolrTestCaseJ4 {
     }
 
     @Override
-    public SecurityProps getSecurityProps(boolean getFresh) {
+    public SecurityConfig getSecurityConfig(boolean getFresh) {
       return m.get("/security.json");
     }
 
     @Override
-    protected boolean persistConf(SecurityProps props) {
-      SecurityProps fromMap = m.get("/security.json");
+    protected boolean persistConf(SecurityConfig props) {
+      SecurityConfig fromMap = m.get("/security.json");
       if (fromMap.getVersion() == props.getVersion()) {
         props.setVersion(props.getVersion()+1);
         m.put("/security.json", props);

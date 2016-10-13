@@ -48,22 +48,21 @@ public class SecurityConfHandlerLocal extends SecurityConfHandler {
   /**
    * Fetches security props from SOLR_HOME
    * @param getFresh NOP
-   * @return SecurityProps whose data property either contains security.json, or an empty map if not found
+   * @return SecurityConfig whose data property either contains security.json, or an empty map if not found
    */
   @Override
-  public SecurityProps getSecurityProps(boolean getFresh) {
+  public SecurityConfig getSecurityConfig(boolean getFresh) {
     if (Files.exists(SECURITY_JSON_PATH)) {
       try (InputStream securityJsonIs = Files.newInputStream(SECURITY_JSON_PATH)) {
-        log.debug("Using local version of security.json from SOLR_HOME");
-        return new SecurityProps().setData(securityJsonIs);
+        return new SecurityConfig().setData(securityJsonIs);
       } catch (IOException e) { /* Fall through */ }
     }
-    return new SecurityProps();
+    return new SecurityConfig();
   }
 
   @Override
   protected void getConf(SolrQueryResponse rsp, String key) {
-    SecurityProps props = getSecurityProps(false);
+    SecurityConfig props = getSecurityConfig(false);
     Object o = props.getData().get(key);
     if (o == null) {
       rsp.add(CommandOperation.ERR_MSGS, Collections.singletonList("No " + key + " configured"));
@@ -74,17 +73,17 @@ public class SecurityConfHandlerLocal extends SecurityConfHandler {
   }
   
   @Override
-  protected boolean persistConf(SecurityProps securityProps) throws IOException {
-    if (securityProps == null || securityProps.getData().isEmpty()) {
+  protected boolean persistConf(SecurityConfig securityConfig) throws IOException {
+    if (securityConfig == null || securityConfig.getData().isEmpty()) {
       throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, 
           "Failed persisting security.json to SOLR_HOME. Object was empty.");
     }
     try(OutputStream securityJsonOs = Files.newOutputStream(SECURITY_JSON_PATH)) {
-      log.debug("Writing security.json to Solr home");
-      securityJsonOs.write(Utils.toJSON(securityProps.getData()));
+      securityJsonOs.write(Utils.toJSON(securityConfig.getData()));
+      log.debug("Persisted security.json to {}", SECURITY_JSON_PATH);
       return true;
     } catch (IOException e) {
-      log.warn("Failed persisting security.json to SOLR_HOME", e);
+      log.warn("Failed persisting security.json to {}", SECURITY_JSON_PATH, e);
       return false;
     }
   }

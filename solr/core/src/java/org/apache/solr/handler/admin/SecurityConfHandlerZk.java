@@ -18,6 +18,7 @@
 package org.apache.solr.handler.admin;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.Collections;
 
 import org.apache.solr.common.SolrException;
@@ -27,13 +28,17 @@ import org.apache.solr.core.CoreContainer;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.util.CommandOperation;
 import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.solr.common.SolrException.ErrorCode.SERVER_ERROR;
+import static org.apache.solr.common.cloud.ZkStateReader.SOLR_SECURITY_CONF_PATH;
 
 /**
  * Security Configuration Handler which works with Zookeeper
  */
 public class SecurityConfHandlerZk extends SecurityConfHandler {
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   public SecurityConfHandlerZk(CoreContainer coreContainer) {
     super(coreContainer);
   }
@@ -41,14 +46,14 @@ public class SecurityConfHandlerZk extends SecurityConfHandler {
   /**
    * Fetches security props from Zookeeper and adds version
    * @param getFresh refresh from ZK
-   * @return SecurityProps whose data property either contains security.json, or an empty map if not found
+   * @return SecurityConfig whose data property either contains security.json, or an empty map if not found
    */
   @Override
-  public SecurityProps getSecurityProps(boolean getFresh) {
+  public SecurityConfig getSecurityConfig(boolean getFresh) {
     ZkStateReader.ConfigData configDataFromZk = cores.getZkController().getZkStateReader().getSecurityProps(getFresh);
     return configDataFromZk == null ? 
-        new SecurityProps() :
-        new SecurityProps().setData(configDataFromZk.data).setVersion(configDataFromZk.version);
+        new SecurityConfig() :
+        new SecurityConfig().setData(configDataFromZk.data).setVersion(configDataFromZk.version);
   }
 
   @Override
@@ -64,16 +69,18 @@ public class SecurityConfHandlerZk extends SecurityConfHandler {
   }
   
   @Override
-  protected boolean persistConf(SecurityProps securityProps) throws IOException {
+  protected boolean persistConf(SecurityConfig securityConfig) throws IOException {
     try {
-      cores.getZkController().getZkClient().setData(ZkStateReader.SOLR_SECURITY_CONF_PATH, 
-          Utils.toJSON(securityProps.getData()), 
-          securityProps.getVersion(), true);
+      cores.getZkController().getZkClient().setData(SOLR_SECURITY_CONF_PATH, 
+          Utils.toJSON(securityConfig.getData()), 
+          securityConfig.getVersion(), true);
+      log.debug("Persisted security.json to {}", SOLR_SECURITY_CONF_PATH);
       return true;
     } catch (KeeperException.BadVersionException bdve){
+      log.warn("Failed persisting security.json to {}", SOLR_SECURITY_CONF_PATH, bdve);
       return false;
     } catch (Exception e) {
-      throw new SolrException(SERVER_ERROR, " Unable to persist conf",e);
+      throw new SolrException(SERVER_ERROR, "Unable to persist security.json", e);
     }
   }
   

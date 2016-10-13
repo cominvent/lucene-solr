@@ -102,7 +102,7 @@ public class BasicAuthStandaloneTest extends AbstractSolrTestCase {
       verifySecurityStatus(cl, baseUrl + authcPrefix, "/errorMessages", null, 20);
 
       // Write security.json locally. Should cause security to be initialized
-      securityConfHandler.persistConf(new SecurityConfHandler.SecurityProps()
+      securityConfHandler.persistConf(new SecurityConfHandler.SecurityConfig()
           .setData(Utils.fromJSONString(STD_CONF.replaceAll("'", "\""))));
       securityConfHandler.securityConfEdited();
       verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/class", "solr.BasicAuthPlugin", 20);
@@ -137,7 +137,7 @@ public class BasicAuthStandaloneTest extends AbstractSolrTestCase {
       verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/credentials/harry", NOT_NULL_PREDICATE, 20);
 
       // Read file from SOLR_HOME and verify that it contains our new user
-      assertTrue(new String(Utils.toJSON(securityConfHandler.getSecurityProps(false).getData())).contains("harry"));
+      assertTrue(new String(Utils.toJSON(securityConfHandler.getSecurityConfig(false).getData())).contains("harry"));
     } finally {
       if (cl != null) {
         HttpClientUtil.close(cl);

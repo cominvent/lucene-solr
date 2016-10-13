@@ -295,10 +295,10 @@ public class CoreContainer {
     }
 
     if (pluginClassName != null) {
-      log.info("Authentication plugin class obtained from security.json: "+pluginClassName);
+      log.debug("Authentication plugin class obtained from security.json: "+pluginClassName);
     } else if (System.getProperty(AUTHENTICATION_PLUGIN_PROP) != null) {
       pluginClassName = System.getProperty(AUTHENTICATION_PLUGIN_PROP);
-      log.info("Authentication plugin class obtained from system property '" +
+      log.debug("Authentication plugin class obtained from system property '" +
           AUTHENTICATION_PLUGIN_PROP + "': " + pluginClassName);
     } else {
       log.debug("No authentication plugin used.");
@@ -563,7 +563,7 @@ public class CoreContainer {
   }
 
   public void securityNodeChanged() {
-    log.info("Security node changed");
+    log.info("Security node changed, reloading security.json");
     reloadSecurityProperties();
   }
 
@@ -571,7 +571,7 @@ public class CoreContainer {
    * Make sure securityConfHandler is initialized
    */
   private void reloadSecurityProperties() {
-    SecurityConfHandler.SecurityProps securityConfig = securityConfHandler.getSecurityProps(false);
+    SecurityConfHandler.SecurityConfig securityConfig = securityConfHandler.getSecurityConfig(false);
     initializeAuthorizationPlugin((Map<String, Object>) securityConfig.getData().get("authorization"));
     initializeAuthenticationPlugin((Map<String, Object>) securityConfig.getData().get("authentication"));
   }
