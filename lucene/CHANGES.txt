@@ -22,6 +22,9 @@ API Changes
   to iterators, enabling future codec compression improvements. (Mike
   McCandless)
 
+* LUCENE-7475: Norms now support sparsity, allowing to pay for what is
+  actually used. (Adrien Grand)
+
 Bug Fixes
 
 Improvements
@@ -44,7 +47,39 @@ API Changes
 
 New Features
 
+* LUCENE-7438: New "UnifiedHighlighter" derivative of the PostingsHighlighter that
+  can consume offsets from postings, term vectors, or analysis.  It can highlight phrases
+  as accurately as the standard Highlighter. Light term vectors can be used with offsets
+  in postings for fast wildcard (MultiTermQuery) highlighting.
+  (David Smiley, Timothy Rodriguez)
+
+* LUCENE-7490: SimpleQueryParser now parses '*' to MatchAllDocsQuery
+  (Lee Hinman via Mike McCandless)
+
 Bug Fixes
+
+* LUCENE-7472: MultiFieldQueryParser.getFieldQuery() drops queries that are
+  neither BooleanQuery nor TermQuery.  (Steve Rowe)
+
+* LUCENE-7456: PerFieldPostings/DocValues was failing to delegate the
+  merge method (Julien MASSENET via Mike McCandless)
+
+* LUCENE-7468: ASCIIFoldingFilter should not emit duplicated tokens when
+  preserve original is on. (David Causse via Adrien Grand)
+
+* LUCENE-7484: FastVectorHighlighter failed to highlight SynonymQuery
+  (Jim Ferenczi via Mike McCandless)
+
+* LUCENE-7476: JapaneseNumberFilter should not invoke incrementToken
+  on its input after it's exhausted (Andy Hind via Mike McCandless)
+
+* LUCENE-7486: DisjunctionMaxQuery does not work correctly with queries that
+  return negative scores.  (Ivan Provalov, Uwe Schindler, Adrien Grand)
+
+* LUCENE-7491: Suddenly turning on dimensional points for some fields
+  that already exist in an index but didn't previously index
+  dimensional points could cause unexpected merge exceptions (Hans
+  Lund, Mike McCandless)
 
 Improvements
 
@@ -57,6 +92,9 @@ Other
 
 * LUCENE-7452: Block join query exception suggests how to find a doc, which 
  violates orthogonality requirement. (Mikhail Khludnev)
+
+* LUCENE-7438: Renovate the Benchmark module's support for benchmarking highlighting. All
+  highlighters are supported via SearchTravRetHighlight. (David Smiley)
 
 Build
 

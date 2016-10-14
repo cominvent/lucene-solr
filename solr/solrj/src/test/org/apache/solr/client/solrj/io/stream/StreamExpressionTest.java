@@ -19,6 +19,7 @@ package org.apache.solr.client.solrj.io.stream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -715,6 +716,173 @@ public class StreamExpressionTest extends SolrCloudTestCase {
     assertMaps(maps2, 4, 6);
 
   }
+
+  @Test
+  public void testFetchStream() throws Exception {
+
+    SolrClientCache solrClientCache = new SolrClientCache();
+
+    new UpdateRequest()
+        .add(id, "0", "a_s", "hello0", "a_i", "0", "a_f", "1", "subject", "blah blah blah 0")
+        .add(id, "2", "a_s", "hello0", "a_i", "2", "a_f", "2", "subject", "blah blah blah 2")
+        .add(id, "3", "a_s", "hello3", "a_i", "3", "a_f", "3", "subject", "blah blah blah 3")
+        .add(id, "4", "a_s", "hello4", "a_i", "4", "a_f", "4", "subject", "blah blah blah 4")
+        .add(id, "1", "a_s", "hello0", "a_i", "1", "a_f", "5", "subject", "blah blah blah 1")
+        .add(id, "5", "a_s", "hello3", "a_i", "5", "a_f", "6", "subject", "blah blah blah 5")
+        .add(id, "6", "a_s", "hello4", "a_i", "6", "a_f", "7", "subject", "blah blah blah 6")
+        .add(id, "7", "a_s", "hello3", "a_i", "7", "a_f", "8", "subject", "blah blah blah 7")
+        .add(id, "8", "a_s", "hello3", "a_i", "8", "a_f", "9", "subject", "blah blah blah 8")
+        .add(id, "9", "a_s", "hello0", "a_i", "9", "a_f", "10", "subject", "blah blah blah 9")
+        .commit(cluster.getSolrClient(), COLLECTION);
+
+    TupleStream stream;
+    List<Tuple> tuples;
+
+    StreamFactory factory = new StreamFactory()
+        .withCollectionZkHost(COLLECTION, cluster.getZkServer().getZkAddress())
+        .withFunctionName("search", CloudSolrStream.class)
+        .withFunctionName("fetch", FetchStream.class);
+
+    stream = factory.constructStream("fetch("+COLLECTION+",  search(" + COLLECTION + ", q=*:*, fl=\"id,a_s,a_i,a_f\", sort=\"a_f asc\"), on=\"id=a_i\", batchSize=\"2\", fl=\"subject\")");
+    StreamContext context = new StreamContext();
+    context.setSolrClientCache(solrClientCache);
+    stream.setStreamContext(context);
+    tuples = getTuples(stream);
+
+    assert(tuples.size() == 10);
+    Tuple t = tuples.get(0);
+    assertTrue("blah blah blah 0".equals(t.getString("subject")));
+    t = tuples.get(1);
+    assertTrue("blah blah blah 2".equals(t.getString("subject")));
+    t = tuples.get(2);
+    assertTrue("blah blah blah 3".equals(t.getString("subject")));
+    t = tuples.get(3);
+    assertTrue("blah blah blah 4".equals(t.getString("subject")));
+    t = tuples.get(4);
+    assertTrue("blah blah blah 1".equals(t.getString("subject")));
+    t = tuples.get(5);
+    assertTrue("blah blah blah 5".equals(t.getString("subject")));
+    t = tuples.get(6);
+    assertTrue("blah blah blah 6".equals(t.getString("subject")));
+    t = tuples.get(7);
+    assertTrue("blah blah blah 7".equals(t.getString("subject")));
+    t = tuples.get(8);
+    assertTrue("blah blah blah 8".equals(t.getString("subject")));
+    t = tuples.get(9);
+    assertTrue("blah blah blah 9".equals(t.getString("subject")));
+
+    //Change the batch size
+    stream = factory.constructStream("fetch("+COLLECTION+",  search(" + COLLECTION + ", q=*:*, fl=\"id,a_s,a_i,a_f\", sort=\"a_f asc\"), on=\"id=a_i\", batchSize=\"3\", fl=\"subject\")");
+    context = new StreamContext();
+    context.setSolrClientCache(solrClientCache);
+    stream.setStreamContext(context);
+    tuples = getTuples(stream);
+
+    assert(tuples.size() == 10);
+    t = tuples.get(0);
+    assertTrue("blah blah blah 0".equals(t.getString("subject")));
+    t = tuples.get(1);
+    assertTrue("blah blah blah 2".equals(t.getString("subject")));
+    t = tuples.get(2);
+    assertTrue("blah blah blah 3".equals(t.getString("subject")));
+    t = tuples.get(3);
+    assertTrue("blah blah blah 4".equals(t.getString("subject")));
+    t = tuples.get(4);
+    assertTrue("blah blah blah 1".equals(t.getString("subject")));
+    t = tuples.get(5);
+    assertTrue("blah blah blah 5".equals(t.getString("subject")));
+    t = tuples.get(6);
+    assertTrue("blah blah blah 6".equals(t.getString("subject")));
+    t = tuples.get(7);
+    assertTrue("blah blah blah 7".equals(t.getString("subject")));
+    t = tuples.get(8);
+    assertTrue("blah blah blah 8".equals(t.getString("subject")));
+    t = tuples.get(9);
+    assertTrue("blah blah blah 9".equals(t.getString("subject")));
+    solrClientCache.close();
+  }
+
+  @Test
+  public void testParallelFetchStream() throws Exception {
+
+    new UpdateRequest()
+        .add(id, "0", "a_s", "hello0", "a_i", "0", "a_f", "1", "subject", "blah blah blah 0")
+        .add(id, "2", "a_s", "hello0", "a_i", "2", "a_f", "2", "subject", "blah blah blah 2")
+        .add(id, "3", "a_s", "hello3", "a_i", "3", "a_f", "3", "subject", "blah blah blah 3")
+        .add(id, "4", "a_s", "hello4", "a_i", "4", "a_f", "4", "subject", "blah blah blah 4")
+        .add(id, "1", "a_s", "hello0", "a_i", "1", "a_f", "5", "subject", "blah blah blah 1")
+        .add(id, "5", "a_s", "hello3", "a_i", "5", "a_f", "6", "subject", "blah blah blah 5")
+        .add(id, "6", "a_s", "hello4", "a_i", "6", "a_f", "7", "subject", "blah blah blah 6")
+        .add(id, "7", "a_s", "hello3", "a_i", "7", "a_f", "8", "subject", "blah blah blah 7")
+        .add(id, "8", "a_s", "hello3", "a_i", "8", "a_f", "9", "subject", "blah blah blah 8")
+        .add(id, "9", "a_s", "hello0", "a_i", "9", "a_f", "10", "subject", "blah blah blah 9")
+        .commit(cluster.getSolrClient(), COLLECTION);
+
+    TupleStream stream;
+    List<Tuple> tuples;
+
+    StreamFactory factory = new StreamFactory()
+        .withCollectionZkHost(COLLECTION, cluster.getZkServer().getZkAddress())
+        .withFunctionName("search", CloudSolrStream.class)
+        .withFunctionName("parallel", ParallelStream.class)
+        .withFunctionName("fetch", FetchStream.class);
+
+    stream = factory.constructStream("parallel("+COLLECTION+", workers=2, sort=\"a_f asc\", fetch("+COLLECTION+",  search(" + COLLECTION + ", q=*:*, fl=\"id,a_s,a_i,a_f\", sort=\"a_f asc\", partitionKeys=\"id\"), on=\"id=a_i\", batchSize=\"2\", fl=\"subject\"))");
+    tuples = getTuples(stream);
+
+    assert(tuples.size() == 10);
+    Tuple t = tuples.get(0);
+    assertTrue("blah blah blah 0".equals(t.getString("subject")));
+    t = tuples.get(1);
+    assertTrue("blah blah blah 2".equals(t.getString("subject")));
+    t = tuples.get(2);
+    assertTrue("blah blah blah 3".equals(t.getString("subject")));
+    t = tuples.get(3);
+    assertTrue("blah blah blah 4".equals(t.getString("subject")));
+    t = tuples.get(4);
+    assertTrue("blah blah blah 1".equals(t.getString("subject")));
+    t = tuples.get(5);
+    assertTrue("blah blah blah 5".equals(t.getString("subject")));
+    t = tuples.get(6);
+    assertTrue("blah blah blah 6".equals(t.getString("subject")));
+    t = tuples.get(7);
+    assertTrue("blah blah blah 7".equals(t.getString("subject")));
+    t = tuples.get(8);
+    assertTrue("blah blah blah 8".equals(t.getString("subject")));
+    t = tuples.get(9);
+    assertTrue("blah blah blah 9".equals(t.getString("subject")));
+
+
+    stream = factory.constructStream("parallel("+COLLECTION+", workers=2, sort=\"a_f asc\", fetch("+COLLECTION+",  search(" + COLLECTION + ", q=*:*, fl=\"id,a_s,a_i,a_f\", sort=\"a_f asc\", partitionKeys=\"id\"), on=\"id=a_i\", batchSize=\"3\", fl=\"subject\"))");
+    tuples = getTuples(stream);
+
+    assert(tuples.size() == 10);
+    t = tuples.get(0);
+    assertTrue("blah blah blah 0".equals(t.getString("subject")));
+    t = tuples.get(1);
+    assertTrue("blah blah blah 2".equals(t.getString("subject")));
+    t = tuples.get(2);
+    assertTrue("blah blah blah 3".equals(t.getString("subject")));
+    t = tuples.get(3);
+    assertTrue("blah blah blah 4".equals(t.getString("subject")));
+    t = tuples.get(4);
+    assertTrue("blah blah blah 1".equals(t.getString("subject")));
+    t = tuples.get(5);
+    assertTrue("blah blah blah 5".equals(t.getString("subject")));
+    t = tuples.get(6);
+    assertTrue("blah blah blah 6".equals(t.getString("subject")));
+    t = tuples.get(7);
+    assertTrue("blah blah blah 7".equals(t.getString("subject")));
+    t = tuples.get(8);
+    assertTrue("blah blah blah 8".equals(t.getString("subject")));
+    t = tuples.get(9);
+    assertTrue("blah blah blah 9".equals(t.getString("subject")));
+
+  }
+
+
+
+
 
   @Test
   public void testDaemonStream() throws Exception {
@@ -3412,6 +3580,148 @@ public class StreamExpressionTest extends SolrCloudTestCase {
 
   }
 
+  @Test
+  public void testClassifyStream() throws Exception {
+    CollectionAdminRequest.createCollection("modelCollection", "ml", 2, 1).process(cluster.getSolrClient());
+    AbstractDistribZkTestBase.waitForRecoveriesToFinish("modelCollection", cluster.getSolrClient().getZkStateReader(),
+        false, true, TIMEOUT);
+    CollectionAdminRequest.createCollection("uknownCollection", "ml", 2, 1).process(cluster.getSolrClient());
+    AbstractDistribZkTestBase.waitForRecoveriesToFinish("uknownCollection", cluster.getSolrClient().getZkStateReader(),
+        false, true, TIMEOUT);
+    CollectionAdminRequest.createCollection("checkpointCollection", "ml", 2, 1).process(cluster.getSolrClient());
+    AbstractDistribZkTestBase.waitForRecoveriesToFinish("checkpointCollection", cluster.getSolrClient().getZkStateReader(),
+        false, true, TIMEOUT);
+
+    UpdateRequest updateRequest = new UpdateRequest();
+
+    for (int i = 0; i < 500; i+=2) {
+      updateRequest.add(id, String.valueOf(i), "tv_text", "a b c c d", "out_i", "1");
+      updateRequest.add(id, String.valueOf(i+1), "tv_text", "a b e e f", "out_i", "0");
+    }
+
+    updateRequest.commit(cluster.getSolrClient(), COLLECTION);
+
+    updateRequest = new UpdateRequest();
+    updateRequest.add(id, String.valueOf(0), "text_s", "a b c c d");
+    updateRequest.add(id, String.valueOf(1), "text_s", "a b e e f");
+    updateRequest.commit(cluster.getSolrClient(), "uknownCollection");
+
+    String url = cluster.getJettySolrRunners().get(0).getBaseUrl().toString() + "/" + COLLECTION;
+    TupleStream updateTrainModelStream;
+    ModifiableSolrParams paramsLoc;
+
+    StreamFactory factory = new StreamFactory()
+        .withCollectionZkHost("collection1", cluster.getZkServer().getZkAddress())
+        .withCollectionZkHost("modelCollection", cluster.getZkServer().getZkAddress())
+        .withCollectionZkHost("uknownCollection", cluster.getZkServer().getZkAddress())
+        .withFunctionName("features", FeaturesSelectionStream.class)
+        .withFunctionName("train", TextLogitStream.class)
+        .withFunctionName("search", CloudSolrStream.class)
+        .withFunctionName("update", UpdateStream.class);
+
+    // train the model
+    String textLogitExpression = "train(" +
+        "collection1, " +
+        "features(collection1, q=\"*:*\", featureSet=\"first\", field=\"tv_text\", outcome=\"out_i\", numTerms=4),"+
+        "q=\"*:*\", " +
+        "name=\"model\", " +
+        "field=\"tv_text\", " +
+        "outcome=\"out_i\", " +
+        "maxIterations=100)";
+    updateTrainModelStream = factory.constructStream("update(modelCollection, batchSize=5, "+textLogitExpression+")");
+    getTuples(updateTrainModelStream);
+    cluster.getSolrClient().commit("modelCollection");
+
+    // classify unknown documents
+    String expr = "classify(" +
+        "model(modelCollection, id=\"model\", cacheMillis=5000)," +
+        "topic(checkpointCollection, uknownCollection, q=\"*:*\", fl=\"text_s, id\", id=\"1000000\", initialCheckpoint=\"0\")," +
+        "field=\"text_s\"," +
+        "analyzerField=\"tv_text\")";
+
+    paramsLoc = new ModifiableSolrParams();
+    paramsLoc.set("expr", expr);
+    paramsLoc.set("qt","/stream");
+    SolrStream classifyStream = new SolrStream(url, paramsLoc);
+    Map<String, Double> idToLabel = getIdToLabel(classifyStream, "probability_d");
+    assertEquals(idToLabel.size(), 2);
+    assertEquals(1.0, idToLabel.get("0"), 0.001);
+    assertEquals(0, idToLabel.get("1"), 0.001);
+
+    // Add more documents and classify it
+    updateRequest = new UpdateRequest();
+    updateRequest.add(id, String.valueOf(2), "text_s", "a b c c d");
+    updateRequest.add(id, String.valueOf(3), "text_s", "a b e e f");
+    updateRequest.commit(cluster.getSolrClient(), "uknownCollection");
+
+    classifyStream = new SolrStream(url, paramsLoc);
+    idToLabel = getIdToLabel(classifyStream, "probability_d");
+    assertEquals(idToLabel.size(), 2);
+    assertEquals(1.0, idToLabel.get("2"), 0.001);
+    assertEquals(0, idToLabel.get("3"), 0.001);
+
+
+    // Train another model
+    updateRequest = new UpdateRequest();
+    updateRequest.deleteByQuery("*:*");
+    updateRequest.commit(cluster.getSolrClient(), COLLECTION);
+
+    updateRequest = new UpdateRequest();
+    for (int i = 0; i < 500; i+=2) {
+      updateRequest.add(id, String.valueOf(i), "tv_text", "a b c c d", "out_i", "0");
+      updateRequest.add(id, String.valueOf(i+1), "tv_text", "a b e e f", "out_i", "1");
+    }
+    updateRequest.commit(cluster.getSolrClient(), COLLECTION);
+    updateTrainModelStream = factory.constructStream("update(modelCollection, batchSize=5, "+textLogitExpression+")");
+    getTuples(updateTrainModelStream);
+    cluster.getSolrClient().commit("modelCollection");
+
+    // Add more documents and classify it
+    updateRequest = new UpdateRequest();
+    updateRequest.add(id, String.valueOf(4), "text_s", "a b c c d");
+    updateRequest.add(id, String.valueOf(5), "text_s", "a b e e f");
+    updateRequest.commit(cluster.getSolrClient(), "uknownCollection");
+
+    //Sleep for 5 seconds to let model cache expire
+    Thread.sleep(5100);
+
+    classifyStream = new SolrStream(url, paramsLoc);
+    idToLabel = getIdToLabel(classifyStream, "probability_d");
+    assertEquals(idToLabel.size(), 2);
+    assertEquals(0, idToLabel.get("4"), 0.001);
+    assertEquals(1.0, idToLabel.get("5"), 0.001);
+
+    //Classify in parallel
+
+    // classify unknown documents
+
+    expr = "parallel(collection1, workers=2, sort=\"_version_ asc\", classify(" +
+           "model(modelCollection, id=\"model\")," +
+           "topic(checkpointCollection, uknownCollection, q=\"id:(4 5)\", fl=\"text_s, id, _version_\", id=\"2000000\", partitionKeys=\"id\", initialCheckpoint=\"0\")," +
+           "field=\"text_s\"," +
+           "analyzerField=\"tv_text\"))";
+
+    paramsLoc.set("expr", expr);
+    classifyStream = new SolrStream(url, paramsLoc);
+    idToLabel = getIdToLabel(classifyStream, "probability_d");
+    assertEquals(idToLabel.size(), 2);
+    assertEquals(0, idToLabel.get("4"), 0.001);
+    assertEquals(1.0, idToLabel.get("5"), 0.001);
+
+    CollectionAdminRequest.deleteCollection("modelCollection").process(cluster.getSolrClient());
+    CollectionAdminRequest.deleteCollection("uknownCollection").process(cluster.getSolrClient());
+    CollectionAdminRequest.deleteCollection("checkpointCollection").process(cluster.getSolrClient());
+  }
+
+  private Map<String,Double> getIdToLabel(TupleStream stream, String outField) throws IOException {
+    Map<String, Double> idToLabel = new HashMap<>();
+    List<Tuple> tuples = getTuples(stream);
+    for (Tuple tuple : tuples) {
+      idToLabel.put(tuple.getString("id"), tuple.getDouble(outField));
+    }
+    return idToLabel;
+  }
+
 
   @Test
   public void testBasicTextLogitStream() throws Exception {
@@ -3697,7 +4007,7 @@ public class StreamExpressionTest extends SolrCloudTestCase {
     assertOrder(tuples, 2);
 
   }
-  
+
   protected List<Tuple> getTuples(TupleStream tupleStream) throws IOException {
     tupleStream.open();
     List<Tuple> tuples = new ArrayList<Tuple>();
