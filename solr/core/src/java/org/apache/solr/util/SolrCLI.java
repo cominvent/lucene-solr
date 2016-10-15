@@ -29,6 +29,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileOwnerAttributeView;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,6 +45,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -108,11 +111,14 @@ import org.slf4j.LoggerFactory;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.solr.common.params.CommonParams.NAME;
+
 /**
  * Command-line utility for working with Solr.
  */
 public class SolrCLI {
-
+  /** Set to true if running in a test */
+  public static boolean isTest = false;
+  
   /**
    * Defines the interface to a Solr tool that can be run from this command-line app.
    */
@@ -233,7 +239,9 @@ public class SolrCLI {
   };
 
   private static void exit(int exitStatus) {
-    // TODO: determine if we're running in a test and don't exit
+    if (isTest) {
+      
+    }
     try {
       System.exit(exitStatus);
     } catch (java.lang.SecurityException secExc) {
@@ -259,6 +267,18 @@ public class SolrCLI {
       exit(0);
     }
 
+    Tool tool = findTool(args);
+    CommandLine cli = parseCmdLine(args, tool.getOptions());
+    System.exit(tool.runTool(cli));
+  }
+
+  public static Tool findTool(String[] args) throws Exception {
+    String toolType = args[0].trim().toLowerCase(Locale.ROOT);
+    return newTool(toolType);
+  }
+
+  public static CommandLine parseCmdLine(String[] args, Option[] toolOptions) throws Exception {
+
     String builderClassName = System.getProperty("solr.authentication.httpclient.builder");
     if (builderClassName!=null) {
       try {
@@ -271,10 +291,6 @@ public class SolrCLI {
         throw new RuntimeException("Error during loading of configurer '"+builderClassName+"'.", ex);
       }
     }
-
-    // Determine the tool
-    String toolType = args[0].trim().toLowerCase(Locale.ROOT);
-    Tool tool = newTool(toolType);
 
     // the parser doesn't like -D props
     List<String> toolArgList = new ArrayList<String>();
@@ -291,7 +307,7 @@ public class SolrCLI {
 
     // process command-line args to configure this application
     CommandLine cli = 
-        processCommandLineArgs(joinCommonAndToolOptions(tool.getOptions()), toolArgs);
+        processCommandLineArgs(joinCommonAndToolOptions(toolOptions), toolArgs);
 
     List argList = cli.getArgList();
     argList.addAll(dashDList);
@@ -303,8 +319,7 @@ public class SolrCLI {
       checkSslStoreSysProp(solrInstallDir, "trustStore");
     }
 
-    // run the tool
-    exit(tool.runTool(cli));
+    return cli;
   }
 
   protected static void checkSslStoreSysProp(String solrInstallDir, String key) {
@@ -368,6 +383,8 @@ public class SolrCLI {
       return new ZkLsTool();
     else if ("assert".equals(toolType))
       return new AssertTool();
+    else if ("utils".equals(toolType))
+      return new UtilsTool();
 
     // If you add a built-in tool to this class, add it here to avoid
     // classpath scanning
@@ -3339,4 +3356,163 @@ public class SolrCLI {
       }
     }
   } // end AssertTool class
+  
+  public static class UtilsTool extends ToolBase {
+
+    private static final int MAX_TO_KEEP = 9;
+
+    public UtilsTool() { this(System.out); }
+    public UtilsTool(PrintStream stdout) { super(stdout); }
+
+    public String getName() {
+      return "prestart";
+    }
+
+    @SuppressWarnings("static-access")
+    public Option[] getOptions() {
+      return new Option[]{
+          OptionBuilder
+              .withArgName("path")
+              .hasArg()
+              .isRequired(false)
+              .withDescription("Path to logs directory")
+              .create("remove_old_solr_logs"),
+          OptionBuilder
+              .withArgName("path")
+              .hasArg()
+              .isRequired(false)
+              .withDescription("Rotate solr.log to solr.log.1 etc")
+              .create("rotate_solr_logs"),
+          OptionBuilder
+              .withArgName("path")
+              .hasArg()
+              .isRequired(false)
+              .withDescription("Archive old garbage collection logs into archive/")
+              .create("archive_gc_logs")
+      };
+    }
+
+    @Override
+    public int runTool(CommandLine cli) throws Exception {
+      if (cli.getOptions().length == 0 || cli.getArgs().length > 0 || cli.hasOption("h")) {
+        new HelpFormatter().printHelp("bin/solr utils [OPTIONS]", getToolOptions(this));
+        return 1;
+      }
+      if (cli.hasOption("remove_old_solr_logs")) {
+        if (removeOldSolrLogs(Paths.get(cli.getOptionValue("remove_old_solr_logs"))) > 0) return 1;
+      }
+      if (cli.hasOption("rotate_solr_logs")) {
+        if (rotateSolrLogs(Paths.get(cli.getOptionValue("rotate_solr_logs"))) > 0) return 1;
+      }
+      if (cli.hasOption("archive_gc_logs")) {
+        if (archiveGcLogs(Paths.get(cli.getOptionValue("archive_gc_logs"))) > 0) return 1;
+      }
+      if (cli.hasOption("archive_console_log")) {
+        if (archiveConsoleLogs(Paths.get(cli.getOptionValue("archive_console_log"))) > 0) return 1;
+      }
+      return 0;
+    }
+
+    private int archiveGcLogs(Path logsPath) throws Exception {
+      Path archivePath = logsPath.resolve("archived");
+      if (!logsPath.isAbsolute()) {
+        throw new Exception("Logs directory must be an absolute path");
+      }
+      if (!archivePath.toFile().exists()) {
+        Files.createDirectories(archivePath);
+      }
+      try (Stream<Path> archived = Files.find(archivePath, 1, 
+          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))) {
+        archived.forEach(p -> p.toFile().delete());
+      } catch (IOException e) {}
+      try (Stream<Path> stream = Files.find(logsPath, 1, 
+          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))) {
+        List<Path> files = stream.collect(Collectors.toList());
+        if (files.size() > 0) {
+          System.out.println("Archiving "+files.size()+" old GC log files");
+          files.forEach(p -> {
+            try {
+              Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) { }
+          });
+        }
+      } catch (IOException e) {}
+      return 0;
+    }
+
+    private int archiveConsoleLogs(Path logsPath) throws Exception {
+      Path archivePath = logsPath.resolve("archived");
+      if (!logsPath.isAbsolute()) {
+        throw new Exception("Logs directory must be an absolute path");
+      }
+      if (!archivePath.toFile().exists()) {
+        Files.createDirectories(archivePath);
+      }
+      try (Stream<Path> archived = Files.find(archivePath, 1, 
+          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))) {
+        archived.forEach(p -> p.toFile().delete());
+      } catch (IOException e) {}
+      try (Stream<Path> stream = Files.find(logsPath, 1, 
+          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))) {
+        List<Path> files = stream.collect(Collectors.toList());
+        if (files.size() > 0) {
+          System.out.println("Archiving "+files.size()+" console log files");
+          files.forEach(p -> {
+            try {
+              Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) { }
+          });
+        }
+      } catch (IOException e) {}
+      return 0;
+    }
+
+    private int rotateSolrLogs(Path logsPath) throws Exception {
+      if (!logsPath.isAbsolute()) {
+        throw new Exception("Logs directory must be an absolute path");
+      }
+      if (logsPath.toFile().exists() && logsPath.resolve("solr.log").toFile().exists()) {
+        System.out.println("Rotating solr logs on startup");
+        try (Stream<Path> files = Files.find(logsPath, 1, 
+            (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr.log."))
+            .sorted((b,a) -> new Integer(a.getFileName().toString().substring(9))
+                  .compareTo(new Integer(b.getFileName().toString().substring(9))))) {
+          files.forEach(p -> {
+            try {
+              int number = Integer.parseInt(p.getFileName().toString().substring(9));
+              if (number >= MAX_TO_KEEP) {
+                Files.delete(p);
+              } else {
+                Path renamed = p.getParent().resolve("solr.log." + (number + 1));
+                Files.move(p, renamed);
+              }
+            } catch (IOException e) {}
+          });
+        }
+        Files.move(logsPath.resolve("solr.log"), logsPath.resolve("solr.log.1"));
+      }
+      
+      return 0;
+    }
+
+    private int removeOldSolrLogs(Path logsPath) throws Exception {
+      if (!logsPath.isAbsolute()) {
+        throw new Exception("Logs directory must be an absolute path");
+      }
+      if (logsPath.toFile().exists()) {
+        try (Stream<Path> stream = Files.find(logsPath, 2, (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
+          List<Path> files = stream.collect(Collectors.toList());
+          if (files.size() > 0) {
+            System.out.println("Deleting "+files.size()+" old solr_log_* files.");
+            files.forEach(p -> p.toFile().delete());
+          }
+        }
+      }
+      return 0;
+    }
+
+    @Override
+    protected void runImpl(CommandLine cli) throws Exception {
+    }
+  } // end UtilsTool class  
 }
