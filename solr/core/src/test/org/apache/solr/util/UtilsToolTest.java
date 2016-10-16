@@ -72,32 +72,53 @@ public class UtilsToolTest {
   
   @Test
   public void empty() throws Exception {
-    String[] args = {"utils", "-remove_old_solr_logs", dir.toString(), 
-        "-rotate_solr_logs", dir.toString(), 
-        "-archive_gc_logs", dir.toString()};
+    String[] args = {"utils", "-remove_old_solr_logs",  
+        "-rotate_solr_logs",  
+        "-archive_gc_logs", 
+        "-l", dir.toString()};
     assertEquals(0, runTool(args));
   }
 
   @Test
   public void nonexisting() throws Exception {
     String nonexisting = dir.resolve("non-existing").toString();
-    String[] args = {"utils", "-remove_old_solr_logs", nonexisting,
-        "-rotate_solr_logs", nonexisting,
-        "-archive_gc_logs", nonexisting};
+    String[] args = {"utils", "-remove_old_solr_logs",
+        "-rotate_solr_logs",
+        "-archive_gc_logs",
+        "-l", nonexisting};
     assertEquals(0, runTool(args));
   }
   
   @Test
   public void testRemoveOldSolrLogs() throws Exception {
-    String[] args = {"utils", "-remove_old_solr_logs", dir.toString()};
+    String[] args = {"utils", "-remove_old_solr_logs", "-l", dir.toString()};
     assertEquals(files.size(), fileCount());
     assertEquals(0, runTool(args));
     assertEquals(files.size()-2, fileCount());
   }
 
   @Test
+  public void testRelativePath() throws Exception {
+    String[] args = {"utils", "-remove_old_solr_logs", "-l", dir.getFileName().toString(), "-s", dir.getParent().toString()};
+    assertEquals(files.size(), fileCount());
+    assertEquals(0, runTool(args));
+    assertEquals(files.size()-2, fileCount());
+  }
+
+  @Test
+  public void testRelativePathError() throws Exception {
+    String[] args = {"utils", "-remove_old_solr_logs", "-l", dir.getFileName().toString()};
+    try {
+      runTool(args);
+    } catch (Exception e) {
+      return;
+    }
+    assertTrue(false);
+  }
+  
+  @Test
   public void testRemoveOldGcLogs() throws Exception {
-    String[] args = {"utils", "-archive_gc_logs", dir.toString()};
+    String[] args = {"utils", "-archive_gc_logs", "-l", dir.toString()};
     assertEquals(files.size(), fileCount());
     assertEquals(0, runTool(args));
     assertEquals(files.size()-2, fileCount());
@@ -109,7 +130,7 @@ public class UtilsToolTest {
 
   @Test
   public void testRotateSolrLogs() throws Exception {
-    String[] args = {"utils", "-rotate_solr_logs", dir.toString()};
+    String[] args = {"utils", "-rotate_solr_logs", "-l", dir.toString()};
     assertEquals(files.size(), fileCount());
     assertTrue(listFiles().contains("solr.log"));
     assertEquals(0, runTool(args));

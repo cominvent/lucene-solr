@@ -3360,6 +3360,8 @@ public class SolrCLI {
   public static class UtilsTool extends ToolBase {
 
     private static final int MAX_TO_KEEP = 9;
+    private Path serverPath;
+    private Path logsPath;
 
     public UtilsTool() { this(System.out); }
     public UtilsTool(PrintStream stdout) { super(stdout); }
@@ -3374,21 +3376,25 @@ public class SolrCLI {
           OptionBuilder
               .withArgName("path")
               .hasArg()
-              .isRequired(false)
+              .withDescription("Path to server dir. Required if logs path is relative")
+              .create("s"),
+          OptionBuilder
+              .withArgName("path")
+              .hasArg()
+              .withDescription("Path to logs dir. If relative, also provide server dir with -s")
+              .create("l"),
+          OptionBuilder
               .withDescription("Path to logs directory")
               .create("remove_old_solr_logs"),
           OptionBuilder
-              .withArgName("path")
-              .hasArg()
-              .isRequired(false)
               .withDescription("Rotate solr.log to solr.log.1 etc")
               .create("rotate_solr_logs"),
           OptionBuilder
-              .withArgName("path")
-              .hasArg()
-              .isRequired(false)
               .withDescription("Archive old garbage collection logs into archive/")
-              .create("archive_gc_logs")
+              .create("archive_gc_logs"),
+          OptionBuilder
+              .withDescription("Archive old console logs into archive/")
+              .create("archive_console_logs")
       };
     }
 
@@ -3398,26 +3404,30 @@ public class SolrCLI {
         new HelpFormatter().printHelp("bin/solr utils [OPTIONS]", getToolOptions(this));
         return 1;
       }
+      if (cli.hasOption("s")) {
+        serverPath = Paths.get(cli.getOptionValue("s"));
+      }
+      if (cli.hasOption("l")) {
+        logsPath = Paths.get(cli.getOptionValue("l"));
+      }
       if (cli.hasOption("remove_old_solr_logs")) {
-        if (removeOldSolrLogs(Paths.get(cli.getOptionValue("remove_old_solr_logs"))) > 0) return 1;
+        if (removeOldSolrLogs() > 0) return 1;
       }
       if (cli.hasOption("rotate_solr_logs")) {
-        if (rotateSolrLogs(Paths.get(cli.getOptionValue("rotate_solr_logs"))) > 0) return 1;
+        if (rotateSolrLogs() > 0) return 1;
       }
       if (cli.hasOption("archive_gc_logs")) {
-        if (archiveGcLogs(Paths.get(cli.getOptionValue("archive_gc_logs"))) > 0) return 1;
+        if (archiveGcLogs() > 0) return 1;
       }
-      if (cli.hasOption("archive_console_log")) {
-        if (archiveConsoleLogs(Paths.get(cli.getOptionValue("archive_console_log"))) > 0) return 1;
+      if (cli.hasOption("archive_console_logs")) {
+        if (archiveConsoleLogs() > 0) return 1;
       }
       return 0;
     }
 
-    private int archiveGcLogs(Path logsPath) throws Exception {
+    private int archiveGcLogs() throws Exception {
+      prepareLogsPath();
       Path archivePath = logsPath.resolve("archived");
-      if (!logsPath.isAbsolute()) {
-        throw new Exception("Logs directory must be an absolute path");
-      }
       if (!archivePath.toFile().exists()) {
         Files.createDirectories(archivePath);
       }
@@ -3440,11 +3450,9 @@ public class SolrCLI {
       return 0;
     }
 
-    private int archiveConsoleLogs(Path logsPath) throws Exception {
+    private int archiveConsoleLogs() throws Exception {
+      prepareLogsPath();
       Path archivePath = logsPath.resolve("archived");
-      if (!logsPath.isAbsolute()) {
-        throw new Exception("Logs directory must be an absolute path");
-      }
       if (!archivePath.toFile().exists()) {
         Files.createDirectories(archivePath);
       }
@@ -3467,10 +3475,8 @@ public class SolrCLI {
       return 0;
     }
 
-    private int rotateSolrLogs(Path logsPath) throws Exception {
-      if (!logsPath.isAbsolute()) {
-        throw new Exception("Logs directory must be an absolute path");
-      }
+    private int rotateSolrLogs() throws Exception {
+      prepareLogsPath();
       if (logsPath.toFile().exists() && logsPath.resolve("solr.log").toFile().exists()) {
         System.out.println("Rotating solr logs on startup");
         try (Stream<Path> files = Files.find(logsPath, 1, 
@@ -3495,10 +3501,8 @@ public class SolrCLI {
       return 0;
     }
 
-    private int removeOldSolrLogs(Path logsPath) throws Exception {
-      if (!logsPath.isAbsolute()) {
-        throw new Exception("Logs directory must be an absolute path");
-      }
+    private int removeOldSolrLogs() throws Exception {
+      prepareLogsPath();
       if (logsPath.toFile().exists()) {
         try (Stream<Path> stream = Files.find(logsPath, 2, (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
           List<Path> files = stream.collect(Collectors.toList());
@@ -3511,6 +3515,19 @@ public class SolrCLI {
       return 0;
     }
 
+    private void prepareLogsPath() throws Exception {
+      if (logsPath == null) {
+        throw new Exception("Command requires the -l <log-directory> option");
+      }
+      if (!logsPath.isAbsolute()) {
+        if (serverPath != null && serverPath.isAbsolute() && serverPath.toFile().exists()) {
+          logsPath = serverPath.resolve(logsPath);
+        } else {
+          throw new Exception("Logs directory must be an absolute path, or -s must be supplied");
+        }
+      }
+    }
+    
     @Override
     protected void runImpl(CommandLine cli) throws Exception {
     }
