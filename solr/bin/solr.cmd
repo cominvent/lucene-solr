@@ -857,10 +857,11 @@ IF ERRORLEVEL 1 (
   set IS_64bit=true
 )
 
-call :run_utils "-remove_old_solr_logs" || echo "Failed removing old solr logs"
-call :run_utils "-archive_gc_logs"      || echo "Failed archiving old GC logs"
-call :run_utils "-archive_console_logs" || echo "Failed archiving old console logs"
-call :run_utils "-rotate_solr_logs"     || echo "Failed rotating old solr logs"
+REM Clean up and rotate logs
+call :run_utils "-remove_old_solr_logs 7" || echo "Failed removing old solr logs"
+call :run_utils "-archive_gc_logs"        || echo "Failed archiving old GC logs"
+call :run_utils "-archive_console_logs"   || echo "Failed archiving old console logs"
+call :run_utils "-rotate_solr_logs 9"     || echo "Failed rotating old solr logs"
 
 IF NOT "%ZK_HOST%"=="" set SOLR_MODE=solrcloud
 

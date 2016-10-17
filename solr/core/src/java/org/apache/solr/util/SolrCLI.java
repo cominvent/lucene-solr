@@ -31,6 +31,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileOwnerAttributeView;
+import java.time.Instant;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -3358,10 +3360,9 @@ public class SolrCLI {
   } // end AssertTool class
   
   public static class UtilsTool extends ToolBase {
-
-    private static final int MAX_TO_KEEP = 9;
     private Path serverPath;
     private Path logsPath;
+    private boolean beQuiet;
 
     public UtilsTool() { this(System.out); }
     public UtilsTool(PrintStream stdout) { super(stdout); }
@@ -3384,9 +3385,18 @@ public class SolrCLI {
               .withDescription("Path to logs dir. If relative, also provide server dir with -s")
               .create("l"),
           OptionBuilder
+              .withDescription("Be quiet, don't print to stdout, only return exit codes")
+              .create("q"),
+          OptionBuilder
+              .withArgName("daysToKeep")
+              .hasArg()
+              .withType(Integer.class)
               .withDescription("Path to logs directory")
               .create("remove_old_solr_logs"),
           OptionBuilder
+              .withArgName("generations")
+              .hasArg()
+              .withType(Integer.class)
               .withDescription("Rotate solr.log to solr.log.1 etc")
               .create("rotate_solr_logs"),
           OptionBuilder
@@ -3410,11 +3420,14 @@ public class SolrCLI {
       if (cli.hasOption("l")) {
         logsPath = Paths.get(cli.getOptionValue("l"));
       }
+      if (cli.hasOption("q")) {
+        beQuiet = cli.hasOption("q");
+      }
       if (cli.hasOption("remove_old_solr_logs")) {
-        if (removeOldSolrLogs() > 0) return 1;
+        if (removeOldSolrLogs(Integer.parseInt(cli.getOptionValue("remove_old_solr_logs"))) > 0) return 1;
       }
       if (cli.hasOption("rotate_solr_logs")) {
-        if (rotateSolrLogs() > 0) return 1;
+        if (rotateSolrLogs(Integer.parseInt(cli.getOptionValue("rotate_solr_logs"))) > 0) return 1;
       }
       if (cli.hasOption("archive_gc_logs")) {
         if (archiveGcLogs() > 0) return 1;
@@ -3425,7 +3438,12 @@ public class SolrCLI {
       return 0;
     }
 
-    private int archiveGcLogs() throws Exception {
+    /**
+     * Moves gc logs into archived/
+     * @return 0 on success
+     * @throws Exception on failure
+     */
+    public int archiveGcLogs() throws Exception {
       prepareLogsPath();
       Path archivePath = logsPath.resolve("archived");
       if (!archivePath.toFile().exists()) {
@@ -3439,7 +3457,7 @@ public class SolrCLI {
           (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))) {
         List<Path> files = stream.collect(Collectors.toList());
         if (files.size() > 0) {
-          System.out.println("Archiving "+files.size()+" old GC log files");
+          out("Archiving "+files.size()+" old GC log files");
           files.forEach(p -> {
             try {
               Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
@@ -3450,7 +3468,12 @@ public class SolrCLI {
       return 0;
     }
 
-    private int archiveConsoleLogs() throws Exception {
+    /**
+     * Moves console log(s) into archiced/
+     * @return 0 on success
+     * @throws Exception on failure
+     */
+    public int archiveConsoleLogs() throws Exception {
       prepareLogsPath();
       Path archivePath = logsPath.resolve("archived");
       if (!archivePath.toFile().exists()) {
@@ -3464,7 +3487,7 @@ public class SolrCLI {
           (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))) {
         List<Path> files = stream.collect(Collectors.toList());
         if (files.size() > 0) {
-          System.out.println("Archiving "+files.size()+" console log files");
+          out("Archiving "+files.size()+" console log files");
           files.forEach(p -> {
             try {
               Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
@@ -3475,10 +3498,23 @@ public class SolrCLI {
       return 0;
     }
 
-    private int rotateSolrLogs() throws Exception {
+    /**
+     * Rotates solr.log before starting Solr. Mimics log4j2 behavior, i.e. with generations=9:
+     * <p>
+     *   solr.log.9 (and higher) are deleted
+     *   solr.log.8 -> solr.log.9
+     *   solr.log.7 -> solr.log.8
+     *   ...
+     *   solr.log   -> solr.log.1
+     * </p>
+     * @param generations number of generations to keep. Should agree with setting in log4j.properties
+     * @return 0 if success
+     * @throws Exception if problems
+     */
+    public int rotateSolrLogs(int generations) throws Exception {
       prepareLogsPath();
       if (logsPath.toFile().exists() && logsPath.resolve("solr.log").toFile().exists()) {
-        System.out.println("Rotating solr logs on startup");
+        out("Rotating solr logs on startup");
         try (Stream<Path> files = Files.find(logsPath, 1, 
             (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr.log."))
             .sorted((b,a) -> new Integer(a.getFileName().toString().substring(9))
@@ -3486,7 +3522,7 @@ public class SolrCLI {
           files.forEach(p -> {
             try {
               int number = Integer.parseInt(p.getFileName().toString().substring(9));
-              if (number >= MAX_TO_KEEP) {
+              if (number >= generations) {
                 Files.delete(p);
               } else {
                 Path renamed = p.getParent().resolve("solr.log." + (number + 1));
@@ -3501,18 +3537,34 @@ public class SolrCLI {
       return 0;
     }
 
-    private int removeOldSolrLogs() throws Exception {
+    /**
+     * Deletes time-stamped old solr logs, if older than n days 
+     * @param daysToKeep number of days logs to keep before deleting
+     * @return 0 on success
+     * @throws Exception on failure
+     */
+    public int removeOldSolrLogs(int daysToKeep) throws Exception {
       prepareLogsPath();
       if (logsPath.toFile().exists()) {
-        try (Stream<Path> stream = Files.find(logsPath, 2, (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
+        try (Stream<Path> stream = Files.find(logsPath, 2, (f, a) -> a.isRegularFile() 
+            && Instant.now().minus(Period.ofDays(daysToKeep)).isAfter(a.lastModifiedTime().toInstant())
+            && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
           List<Path> files = stream.collect(Collectors.toList());
           if (files.size() > 0) {
-            System.out.println("Deleting "+files.size()+" old solr_log_* files.");
+            out("Deleting "+files.size()+" old solr_log_* files.");
             files.forEach(p -> p.toFile().delete());
           }
         }
       }
       return 0;
+    }
+
+    // Private methods to follow
+    
+    private void out(String message) {
+      if (!beQuiet) {
+        stdout.print(message + "\n");
+      }
     }
 
     private void prepareLogsPath() throws Exception {
@@ -3530,6 +3582,18 @@ public class SolrCLI {
     
     @Override
     protected void runImpl(CommandLine cli) throws Exception {
+    }
+    
+    public void setLogPath(Path logsPath) {
+      this.logsPath = logsPath; 
+    }
+
+    public void setServerPath(Path serverPath) {
+      this.serverPath = serverPath; 
+    }
+    
+    public void setQuiet(boolean shouldPrintStdout) {
+      this.beQuiet = shouldPrintStdout; 
     }
   } // end UtilsTool class  
 }
