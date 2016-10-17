@@ -3514,7 +3514,7 @@ public class SolrCLI {
     public int rotateSolrLogs(int generations) throws Exception {
       prepareLogsPath();
       if (logsPath.toFile().exists() && logsPath.resolve("solr.log").toFile().exists()) {
-        out("Rotating solr logs on startup");
+        out("Rotating solr logs, keeping a max of "+generations+" generations");
         try (Stream<Path> files = Files.find(logsPath, 1, 
             (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr.log."))
             .sorted((b,a) -> new Integer(a.getFileName().toString().substring(9))
@@ -3551,7 +3551,7 @@ public class SolrCLI {
             && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
           List<Path> files = stream.collect(Collectors.toList());
           if (files.size() > 0) {
-            out("Deleting "+files.size()+" old solr_log_* files.");
+            out("Deleting "+files.size()+" solr_log_* files older than "+daysToKeep+" days.");
             files.forEach(p -> p.toFile().delete());
           }
         }
