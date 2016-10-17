@@ -118,9 +118,6 @@ import static org.apache.solr.common.params.CommonParams.NAME;
  * Command-line utility for working with Solr.
  */
 public class SolrCLI {
-  /** Set to true if running in a test */
-  public static boolean isTest = false;
-  
   /**
    * Defines the interface to a Solr tool that can be run from this command-line app.
    */
@@ -241,9 +238,6 @@ public class SolrCLI {
   };
 
   private static void exit(int exitStatus) {
-    if (isTest) {
-      
-    }
     try {
       System.exit(exitStatus);
     } catch (java.lang.SecurityException secExc) {
