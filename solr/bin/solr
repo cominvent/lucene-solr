@@ -1405,7 +1405,7 @@ if [ "$GC_LOG_OPTS" != "" ]; then
   if [ "$JAVA_VENDOR" == "IBM J9" ]; then
     gc_log_flag="-Xverbosegclog"
   fi
-  GC_LOG_OPTS=($GC_LOG_OPTS "$gc_log_flag:$SOLR_LOGS_DIR/solr_gc_$(date +"%Y%m%d%H%M%S").log" -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10K)
+  GC_LOG_OPTS=($GC_LOG_OPTS "$gc_log_flag:$SOLR_LOGS_DIR/solr_gc.log")
 else
   GC_LOG_OPTS=()
 fi
