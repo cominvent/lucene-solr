@@ -177,12 +177,6 @@ Bug Fixes
 
 * SOLR-9325: solr.log is now written to $SOLR_LOGS_DIR without changing log4j.properties (janhoy)
 
-* SOLR-9570: Various log tidying now happens at Solr startup:
-  Old solr_log_<date> and solr_gc_log_<date> files are removed, avoiding disks to fill up,
-  solr.log.X files are rotated, preserving solr.log from last run in solr.log.1, solr.log.1 => solr.log.2 etc
-  solr-*-console.log files are moved into $SOLR_LOGS_DIR/archived/ instead of being overwritten
-  Last JVM garbage collection log solr_gc.log is moved into $SOLR_LOGS_DIR/archived/  
-
 Optimizations
 ----------------------
 
@@ -205,6 +199,11 @@ Optimizations
   reader rather than ask for a global view.  In extreme cases, this leads to a 100x speedup.
   (Takahiro Ishikawa, yonik)
 
+* SOLR-9570: Various log tidying now happens at Solr startup:
+  Old solr_log_<date> and solr_gc_log_<date> files are removed, avoiding disks to fill up,
+  solr.log.X files are rotated, preserving solr.log from last run in solr.log.1, solr.log.1 => solr.log.2 etc
+  solr-*-console.log files are moved into $SOLR_LOGS_DIR/archived/ instead of being overwritten
+  Last JVM garbage collection log solr_gc.log is moved into $SOLR_LOGS_DIR/archived/, overwriting previous (janhoy)  
 
 Other Changes
 ----------------------

@@ -3449,22 +3449,21 @@ public class SolrCLI {
       if (!archivePath.toFile().exists()) {
         Files.createDirectories(archivePath);
       }
-      try (Stream<Path> archived = Files.find(archivePath, 1, 
-          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))) {
-        archived.forEach(p -> p.toFile().delete());
-      } catch (IOException e) {}
-      try (Stream<Path> stream = Files.find(logsPath, 1, 
-          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))) {
-        List<Path> files = stream.collect(Collectors.toList());
-        if (files.size() > 0) {
-          out("Archiving "+files.size()+" old GC log files");
-          files.forEach(p -> {
-            try {
-              Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) { }
-          });
+      List<Path> archived = Files.find(archivePath, 1, (f, a) 
+          -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))
+          .collect(Collectors.toList());
+      for (Path p : archived) {
+        Files.delete(p);
+      }
+      List<Path> files = Files.find(logsPath, 1, (f, a) 
+          -> a.isRegularFile() && String.valueOf(f.getFileName()).startsWith("solr_gc_"))
+          .collect(Collectors.toList());
+      if (files.size() > 0) {
+        out("Archiving " + files.size() + " old GC log files to " + archivePath);
+        for (Path p : files) {
+          Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
         }
-      } catch (IOException e) {}
+      }
       return 0;
     }
 
@@ -3479,22 +3478,21 @@ public class SolrCLI {
       if (!archivePath.toFile().exists()) {
         Files.createDirectories(archivePath);
       }
-      try (Stream<Path> archived = Files.find(archivePath, 1, 
-          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))) {
-        archived.forEach(p -> p.toFile().delete());
-      } catch (IOException e) {}
-      try (Stream<Path> stream = Files.find(logsPath, 1, 
-          (f, a) -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))) {
-        List<Path> files = stream.collect(Collectors.toList());
-        if (files.size() > 0) {
-          out("Archiving "+files.size()+" console log files");
-          files.forEach(p -> {
-            try {
-              Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) { }
-          });
+      List<Path> archived = Files.find(archivePath, 1, (f, a) 
+          -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))
+          .collect(Collectors.toList());
+      for (Path p : archived) {        
+        Files.delete(p);
+      }
+      List<Path> files = Files.find(logsPath, 1, (f, a) 
+          -> a.isRegularFile() && String.valueOf(f.getFileName()).endsWith("-console.log"))
+          .collect(Collectors.toList());
+      if (files.size() > 0) {
+        out("Archiving " + files.size() + " console log files");
+        for (Path p : files) {
+          Files.move(p, archivePath.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
         }
-      } catch (IOException e) {}
+      }
       return 0;
     }
 
@@ -3530,6 +3528,8 @@ public class SolrCLI {
               }
             } catch (IOException e) {}
           });
+        } catch (NumberFormatException nfe) {
+          throw new Exception("Do not know how to rotate solr.log.<ext> with non-numeric extension. Rotate aborted.", nfe);
         }
         Files.move(logsPath.resolve("solr.log"), logsPath.resolve("solr.log.1"));
       }
@@ -3552,7 +3552,9 @@ public class SolrCLI {
           List<Path> files = stream.collect(Collectors.toList());
           if (files.size() > 0) {
             out("Deleting "+files.size()+" solr_log_* files older than "+daysToKeep+" days.");
-            files.forEach(p -> p.toFile().delete());
+            for (Path p : files) {
+              Files.delete(p);
+            }
           }
         }
       }
