@@ -3526,7 +3526,9 @@ public class SolrCLI {
                 Path renamed = p.getParent().resolve("solr.log." + (number + 1));
                 Files.move(p, renamed);
               }
-            } catch (IOException e) {}
+            } catch (IOException e) {
+              out("Problem during rotation of log files: " + e.getMessage());
+            }
           });
         } catch (NumberFormatException nfe) {
           throw new Exception("Do not know how to rotate solr.log.<ext> with non-numeric extension. Rotate aborted.", nfe);
@@ -3551,7 +3553,7 @@ public class SolrCLI {
             && String.valueOf(f.getFileName()).startsWith("solr_log_"))) {
           List<Path> files = stream.collect(Collectors.toList());
           if (files.size() > 0) {
-            out("Deleting "+files.size()+" solr_log_* files older than "+daysToKeep+" days.");
+            out("Deleting "+files.size() + " solr_log_* files older than " + daysToKeep + " days.");
             for (Path p : files) {
               Files.delete(p);
             }
