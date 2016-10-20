@@ -45,6 +45,7 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.GenericSolrRequest;
 import org.apache.solr.client.solrj.request.UpdateRequest;
+import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
@@ -145,11 +146,11 @@ public class BasicAuthIntegrationTest extends SolrCloudTestCase {
               "path", "/update/*",
               "role", "dev"))), "harry", "HarryIsUberCool" );
 
-      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[1]/collection", "x", 20);
+      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[2]/collection", "x", 20);
 
       executeCommand(baseUrl + authzPrefix, cl,Utils.toJSONString(singletonMap("set-permission", Utils.makeMap
           ("name", "collection-admin-edit", "role", "admin"))), "harry", "HarryIsUberCool"  );
-      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[2]/name", "collection-admin-edit", 20);
+      verifySecurityStatus(cl, baseUrl + authzPrefix, "authorization/permissions[3]/name", "collection-admin-edit", 20);
 
       CollectionAdminRequest.Reload reload = CollectionAdminRequest.reloadCollection(COLLECTION);
 
@@ -184,12 +185,20 @@ public class BasicAuthIntegrationTest extends SolrCloudTestCase {
       SolrInputDocument doc = new SolrInputDocument();
       doc.setField("id","4");
       UpdateRequest update = new UpdateRequest();
-      update.setBasicAuthCredentials("harry","HarryIsUberCool");
+      update.setBasicAuthCredentials("zharry","HarryIsUberCool");
       update.add(doc);
       update.setCommitWithin(100);
       cluster.getSolrClient().request(update, COLLECTION);
 
-
+      // Delete the document again - SOLR-9399
+      UpdateRequest deleteId = new UpdateRequest();
+//      update.setBasicAuthCredentials("harry","HarryIsUberCool");
+      deleteId.deleteById("4");
+      deleteId.setCommitWithin(100);
+      log.warn("Delete response: "+cluster.getSolrClient().request(deleteId, COLLECTION).toString());
+      UpdateResponse deleteResponse = cluster.getSolrClient().deleteById(COLLECTION, "4");
+      assertEquals(deleteResponse.toString(), 401, deleteResponse.getStatus());
+      
       executeCommand(baseUrl + authcPrefix, cl, "{set-property : { blockUnknown: true}}", "harry", "HarryIsUberCool");
       verifySecurityStatus(cl, baseUrl + authcPrefix, "authentication/blockUnknown", "true", 20, "harry", "HarryIsUberCool");
       verifySecurityStatus(cl, baseUrl + PKIAuthenticationPlugin.PATH + "?wt=json", "key", NOT_NULL_PREDICATE, 20);
@@ -303,5 +312,5 @@ public class BasicAuthIntegrationTest extends SolrCloudTestCase {
       "  'authorization':{\n" +
       "    'class':'solr.RuleBasedAuthorizationPlugin',\n" +
       "    'user-role':{'solr':'admin'},\n" +
-      "    'permissions':[{'name':'security-edit','role':'admin'}]}}";
+      "    'permissions':[{'name':'security-edit','role':'admin'}, {'name':'update','role':'admin'}]}}";
 }
