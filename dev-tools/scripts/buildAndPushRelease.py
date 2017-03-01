@@ -22,6 +22,7 @@ import os
 import sys
 import subprocess
 import textwrap
+import urllib.request
 
 LOG = '/tmp/release.log'
 
@@ -75,6 +76,32 @@ def prepare(root, version, gpgKeyID, gpgPassword):
   print('Prepare release...')
   if os.path.exists(LOG):
     os.remove(LOG)
+
+  if gpgKeyID is not None:
+    print('  Verify your gpg key is in KEYS file')
+    keysFileURL = "https://archive.apache.org/dist/lucene/KEYS"
+    keysFileText = urllib.request.urlopen(keysFileURL).read().decode('iso-8859-1')
+    if len(gpgKeyID) > 2 and gpgKeyID[0:2] == '0x':
+      gpgKeyID = gpgKeyID[2:]
+    if len(gpgKeyID) > 40:
+      gpgKeyID = gpgKeyID.replace(" ", "")
+    if len(gpgKeyID) == 8:
+      re_to_match = r"^pub\s+\d+[DR]/%s " % gpgKeyID
+    elif len(gpgKeyID) == 40:
+      gpgKeyID40Char = "%s %s %s %s %s  %s %s %s %s %s" % \
+                       (gpgKeyID[0:4], gpgKeyID[4:8], gpgKeyID[8:12], gpgKeyID[12:16], gpgKeyID[16:20],
+                       gpgKeyID[20:24], gpgKeyID[24:28], gpgKeyID[28:32], gpgKeyID[32:36], gpgKeyID[36:])
+      print("Generated id string %s" % gpgKeyID40Char)
+      re_to_match = r"^\s+Key fingerprint = %s$" % gpgKeyID40Char
+    else:
+      re_to_match = None
+      print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
+      exit(2)
+    if re.search(re_to_match, keysFileText, re.MULTILINE):
+      print('    Found key %s in KEYS file at %s' % (gpgKeyID, keysFileURL))
+    else:
+      print('    ERROR: Did not find your key %s in KEYS file at %s. Please add it, push it online and try again.' % (gpgKeyID, keysFileURL))
+      exit(2)
 
   os.chdir(root)
   print('  git pull...')
@@ -148,12 +175,6 @@ def pushLocal(version, root, rev, rcNum, localDir):
   os.chdir('%s/%s/solr' % (localDir, dir))
   run('tar xjf "%s/solr/package/solr.tar.bz2"' % root)
   os.remove('%s/solr/package/solr.tar.bz2' % root)
-
-  print('  KEYS')
-  run('wget http://home.apache.org/keys/group/lucene.asc')
-  os.rename('lucene.asc', 'KEYS')
-  run('chmod a+r-w KEYS')
-  run('cp KEYS ../lucene')
 
   print('  chmod...')
   os.chdir('..')
