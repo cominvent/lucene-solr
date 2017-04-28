@@ -16,7 +16,14 @@
  */
 package org.apache.solr.highlight;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
