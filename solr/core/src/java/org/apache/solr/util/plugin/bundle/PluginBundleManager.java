@@ -133,7 +133,7 @@ public class PluginBundleManager {
       for (PluginInfo plugin : updates) {
         try {
           updateManager.updatePlugin(plugin.id, null);
-          log.info("Updatied plugin with id " + plugin.id);
+          log.info("Updated plugin with id " + plugin.id);
         } catch (PluginException e) {
           log.warn("Failed to update plugin {}", plugin.id, e);
         }
