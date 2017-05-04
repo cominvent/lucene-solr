@@ -81,7 +81,9 @@ public class PluginBundleManager {
       this.pluginsRoot = pluginsRoot;
       pluginManager = new SolrPluginManager(pluginsRoot);
       systemVersion = Version.valueOf(org.apache.lucene.util.Version.LATEST.toString());
-//      ApacheMirrorsUpdateRepository apacheRepo = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/" + systemVersion.toString() + "/");
+      ApacheMirrorsUpdateRepository apacheRepo = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/" + systemVersion.toString() + "/");
+      apacheRepo.setRequireSignatureValidation(false);
+      apacheRepo.setRequireChecksumValidation(false);
       List<UpdateRepository> repos = new ArrayList<>();
       repos.add(new PluginUpdateRepository("apache", new URL("http://people.apache.org/~janhoy/dist/plugins/")));
       repos.add(new GitHubUpdateRepository("community","cominvent", "solr-plugins"));

@@ -148,11 +148,14 @@
     <dependency org="org.codehaus.janino" name="commons-compiler" rev="${/org.codehaus.janino/commons-compiler}" conf="compile"/>
     <dependency org="com.google.protobuf" name="protobuf-java" rev="${/com.google.protobuf/protobuf-java}" conf="compile"/>
 
+    <!-- Plugin bundle -->
     <!--<dependency org="ro.fortsoft.pf4j" name="pf4j" rev="${/ro.fortsoft.pf4j/pf4j}" conf="compile"/>-->
     <!--<dependency org="ro.fortsoft.pf4j" name="pf4j-update" rev="${/ro.fortsoft.pf4j/pf4j-update}" conf="compile" />-->
     <dependency org="com.github.zafarkhaja" name="java-semver" rev="${/com.github.zafarkhaja/java-semver}" conf="compile"/>
     <dependency org="com.google.code.gson" name="gson" rev="${/com.google.code.gson/gson}" conf="compile"/>
-
+    <dependency org="org.c02e.jpgpj" name="jpgpj" rev="${/org.c02e.jpgpj/jpgpj}" conf="compile"/>
+    <dependency org="org.bouncycastle" name="bcpg-jdk15on" rev="${/org.bouncycastle/bcpg-jdk15on}"/>
+    <dependency org="org.bouncycastle" name="bcprov-jdk15on" rev="${/org.bouncycastle/bcprov-jdk15on}"/>
 
     <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
   </dependencies>

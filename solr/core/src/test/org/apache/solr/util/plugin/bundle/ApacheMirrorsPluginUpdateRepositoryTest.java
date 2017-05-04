@@ -17,9 +17,14 @@
 
 package org.apache.solr.util.plugin.bundle;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -34,7 +39,7 @@ public class ApacheMirrorsPluginUpdateRepositoryTest {
 
   @Before
   public void setUp() throws Exception {
-    mirrorExist = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/6.5.0");
+    mirrorExist = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/6.5.1");
     repoRedir = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/5.5.0");
     nonexist = new ApacheMirrorsUpdateRepository("apache", "lucene/solr/nonExist");
   }
@@ -65,4 +70,12 @@ public class ApacheMirrorsPluginUpdateRepositoryTest {
 //    Path file = mirrorExist.getFileDownloader().downloadFile(new URL(mirrorExist.getUrl() + "file"));
 //    assertTrue(Files.exists(file));
   }
+
+  @Test
+  public void testSignature() throws Exception {
+    // TODO: Mock
+    Path file = mirrorExist.getFileDownloader().downloadFile(new URL(mirrorExist.getUrl() + "solr-6.5.1.tgz"));
+    assertTrue(Files.exists(file));
+  }
+
 }
