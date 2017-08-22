@@ -233,6 +233,8 @@ Build
 * LUCENE-8168: Moved Groovy scripts in build files to separate files.
   Update Groovy to 2.4.13.  (Uwe Schindler)
 
+* LUCENE-7935: Release .sha512 hash files with our artifacts (janhoy) 
+
 ======================= Lucene 7.2.1 =======================
 
 Bug Fixes
