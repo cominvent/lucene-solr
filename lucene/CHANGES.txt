@@ -515,6 +515,10 @@ Bug Fixes
 * LUCENE-7957: ConjunctionScorer.getChildren was failing to return all
   child scorers (Adrien Grand, Mike McCandless)
 
+Other
+
+* LUCENE-7935: Release .sha512 hash files with our artifacts (janhoy) 
+
 ======================= Lucene 7.0.0 =======================
 
 New Features
