@@ -78,10 +78,19 @@ Upgrade Notes
 * LUCENE-8161: If you are using the spatial JTS library with Solr, you must upgrade to 1.15.0.  This new version
   of JTS is now dual-licensed to include a BSD style license.
 
-* SOLR-12011: Replicas which are not up-to-date are not allowed to become leader. Use FORCELEADER API to
-  allow these replicas become leader.
+* SOLR-12051: A new mechanism is introduced in SOLR-11702 to maintain consistency in SolrCloud between leader and replicas.
+  This mechanism lets Solr know whether a replica is in-sync with the leader or not, even when the leader is not live.
+  If all the replicas who participate in the leader election are out-of-sync with previous leader, the election will
+  pause until a timeout (named "leaderVoteWait") before allowing an out-of-sync replica to become leader. Note that the
+  new leader still needs to contains more updates than any other active replicas in the same shard. Therefore by
+  increasing leaderVoteWait will increase the consistency (over availability) of the system. The default value of
+  leaderVoteWait is 180,000 ms (3 minutes) and it can be adjusted in the "solrcloud" section of the solr.xml
 
 * SOLR-11957: The default Solr log file size and number of backups is raised to 32MB and 10 respectively
+
+* SOLR-12067: The default value of `autoReplicaFailoverWaitAfterExpiration` has been increased to 120 seconds
+  from the earlier default of 30 seconds. This affects how soon Solr adds new replicas to replace the replicas
+  on nodes which have either crashed or shutdown.
 
 New Features
 ----------------------
@@ -117,8 +126,8 @@ New Features
 
 * SOLR-11648: A new admin UI to display and execute suggestions (Apoorv Bhawsar , noble)
 
-* SOLR-11722: New CREATEROUTEDALIAS SolrCloud command to create a "time routed alias" over a series of collections
-  partitioned by time. (Gus Heck, David Smiley)
+* SOLR-11722: Added "time routed alias" creation support to the CREATEALIAS command.  It's for managing multiple
+  collections partitioned by time. (Gus Heck, David Smiley)
 
 * SOLR-11782: Refactor LatchWatcher.await to protect against spurious wakeup (Tomás Fernández Löbbe, David Smiley, Dawid Weiss)
 
@@ -186,6 +195,11 @@ New Features
 
 * SOLR-11960: Add collection level properties similar to cluster properties (Peter Rusko, Tomás Fernández Löbbe)
 
+* SOLR-11670: Implement a periodic house-keeping task. This uses a scheduled autoscaling trigger and
+  currently performs cleanup of old inactive shards. (ab, shalin)
+
+* SOLR-12077: Add support for autoAddReplicas in the collection creation dialog in Admin UI. (shalin)
+
 Bug Fixes
 ----------------------
 
@@ -252,6 +266,15 @@ Bug Fixes
 * SOLR-12020: JSON Facet API: terms facet on date field fails in refinement phase with
   "Invalid Date String" error. (yonik)
 
+* SOLR-12061: Fix substitution bug in API V1 to V2 migration when using SolrJ with V2 API. (Tomás Fernánadez Löbbe)
+
+* SOLR-11976: TokenizerChain.normalize: only the first filter that is a MultiTermAwareComponent was participating
+  in normalization instead of all.  This bug normally doesn't matter since TextField doesn't call it.
+  (Tim Allison via David Smiley)
+
+* SOLR-12072: Invalid path string using ZkConfigManager.copyConfigDir(String fromConfig, String toConfig)
+  (Alessandro Hoss via Erick Erickson)
+
 Optimizations
 ----------------------
 
@@ -271,6 +294,8 @@ Optimizations
 
 Other Changes
 ----------------------
+
+* SOLR-11629: Add more intuitive CloudSolrClient.Builder constructors (Varun Thacker, Jason Gerlowski)
 
 * SOLR-11575: Improve ref-guide solrj snippets via mock 'print()' method (Jason Gerlowski via hossman)
 
@@ -360,6 +385,11 @@ Other Changes
   (Varun Thacker, shalin)
 
 * SOLR-12047: Increase checkStateInZk timeout (Cao Manh Dat, Varun Thacker)
+
+* SOLR-12051: Election timeout when no replicas are qualified to become leader (Cao Manh Dat)
+
+* SOLR-12067: Increase autoAddReplicas default 30 second wait time to 120 seconds.
+  (Varun Thacker, Mark Miller via shalin)
 
 ==================  7.2.1 ==================
 
