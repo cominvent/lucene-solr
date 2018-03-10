@@ -296,7 +296,7 @@ def checkSigs(project, urlString, version, tmpDir, isSigned):
   expectedSigs = []
   if isSigned:
     expectedSigs.append('asc')
-  expectedSigs.extend(['md5', 'sha1', 'sha512'])
+  expectedSigs.extend(['sha1', 'sha512'])
   
   artifacts = []
   for text, subURL in ents:
@@ -547,11 +547,7 @@ def run(command, logFile):
     raise RuntimeError('command "%s" failed; see log file %s' % (command, logPath))
     
 def verifyDigests(artifact, urlString, tmpDir):
-  print('    verify md5/sha1/sha512 digests')
-  md5Expected, t = load(urlString + '.md5').strip().split()
-  if t != '*'+artifact:
-    raise RuntimeError('MD5 %s.md5 lists artifact %s but expected *%s' % (urlString, t, artifact))
-  
+  print('    verify sha1/sha512 digests')
   sha1Expected, t = load(urlString + '.sha1').strip().split()
   if t != '*'+artifact:
     raise RuntimeError('SHA1 %s.sha1 lists artifact %s but expected *%s' % (urlString, t, artifact))
@@ -560,7 +556,6 @@ def verifyDigests(artifact, urlString, tmpDir):
   if t != '*'+artifact:
     raise RuntimeError('SHA512 %s.sha512 lists artifact %s but expected *%s' % (urlString, t, artifact))
   
-  m = hashlib.md5()
   s = hashlib.sha1()
   s512 = hashlib.sha512()
   f = open('%s/%s' % (tmpDir, artifact), 'rb')
@@ -571,11 +566,8 @@ def verifyDigests(artifact, urlString, tmpDir):
     m.update(x)
     s.update(x)
   f.close()
-  md5Actual = m.hexdigest()
   sha1Actual = s.hexdigest()
   sha512Actual = s512.hexdigest()
-  if md5Actual != md5Expected:
-    raise RuntimeError('MD5 digest mismatch for %s: expected %s but got %s' % (artifact, md5Expected, md5Actual))
   if sha1Actual != sha1Expected:
     raise RuntimeError('SHA1 digest mismatch for %s: expected %s but got %s' % (artifact, sha1Expected, sha1Actual))
   if sha512Actual != sha512Expected:
@@ -1079,23 +1071,18 @@ def checkIdenticalMavenArtifacts(distFiles, artifacts, version):
                               % (artifact, distFilenames[artifactFilename], project))
 
 def verifyMavenDigests(artifacts):
-  print("    verify Maven artifacts' md5/sha1/sha512 digests...")
+  print("    verify Maven artifacts' sha1/sha512 digests...")
   reJarWarPom = re.compile(r'\.(?:[wj]ar|pom)$')
   for project in ('lucene', 'solr'):
     for artifactFile in [a for a in artifacts[project] if reJarWarPom.search(a)]:
-      if artifactFile + '.md5' not in artifacts[project]:
-        raise RuntimeError('missing: MD5 digest for %s' % artifactFile)
       if artifactFile + '.sha1' not in artifacts[project]:
         raise RuntimeError('missing: SHA1 digest for %s' % artifactFile)
       if artifactFile + '.sha512' not in artifacts[project]:
         raise RuntimeError('missing: SHA512 digest for %s' % artifactFile)
-      with open(artifactFile + '.md5', encoding='UTF-8') as md5File:
-        md5Expected = md5File.read().strip()
       with open(artifactFile + '.sha1', encoding='UTF-8') as sha1File:
         sha1Expected = sha1File.read().strip()
       with open(artifactFile + '.sha512', encoding='UTF-8') as sha512File:
         sha512Expected = sha512File.read().strip()
-      md5 = hashlib.md5()
       sha1 = hashlib.sha1()
       sha512 = hashlib.sha512()
       inputFile = open(artifactFile, 'rb')
@@ -1103,16 +1090,11 @@ def verifyMavenDigests(artifacts):
         bytes = inputFile.read(65536)
         if len(bytes) == 0:
           break
-        md5.update(bytes)
         sha1.update(bytes)
         sha512.update(bytes)
       inputFile.close()
-      md5Actual = md5.hexdigest()
       sha1Actual = sha1.hexdigest()
       sha512Actual = sha512.hexdigest()
-      if md5Actual != md5Expected:
-        raise RuntimeError('MD5 digest mismatch for %s: expected %s but got %s'
-                           % (artifactFile, md5Expected, md5Actual))
       if sha1Actual != sha1Expected:
         raise RuntimeError('SHA1 digest mismatch for %s: expected %s but got %s'
                            % (artifactFile, sha1Expected, sha1Actual))
