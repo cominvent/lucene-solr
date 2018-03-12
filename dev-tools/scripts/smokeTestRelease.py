@@ -563,8 +563,8 @@ def verifyDigests(artifact, urlString, tmpDir):
     x = f.read(65536)
     if len(x) == 0:
       break
-    m.update(x)
     s.update(x)
+    s512.update(x)
   f.close()
   sha1Actual = s.hexdigest()
   sha512Actual = s512.hexdigest()
