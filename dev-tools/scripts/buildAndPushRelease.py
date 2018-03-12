@@ -108,7 +108,6 @@ def prepare(root, version, gpgKeyID, gpgPassword):
       print("Generated id string %s" % gpgKeyID40Char)
       re_to_match = r"^\s+Key fingerprint = %s$" % gpgKeyID40Char
     else:
-      re_to_match = None
       print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
       exit(2)
     if re.search(re_to_match, keysFileText, re.MULTILINE):
