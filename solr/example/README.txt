@@ -22,7 +22,7 @@ separate directory. To run a specific example, do:
   bin/solr -e <EXAMPLE> where <EXAMPLE> is one of:
   
     cloud        : SolrCloud example
-    dih          : Data Import Handler (rdbms, mail, rss, tika)
+    dih          : Data Import Handler (rdbms, mail, atom, tika)
     schemaless   : Schema-less example (schema is inferred from data during indexing)
     techproducts : Kitchen sink example providing comprehensive examples of Solr features
 
@@ -48,8 +48,8 @@ For more information about this example please read...
 
  * example/solr/README.txt
    For more information about the "Solr Home" and Solr specific configuration
- * http://lucene.apache.org/solr/quickstart.html
-   For a Tutorial using this example configuration
+ * https://lucene.apache.org/solr/guide/solr-tutorial.html
+   For a Solr tutorial
  * http://wiki.apache.org/solr/SolrResources 
    For a list of other tutorials and introductory articles.
 

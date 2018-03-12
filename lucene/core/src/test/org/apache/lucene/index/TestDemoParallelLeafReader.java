@@ -55,6 +55,7 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.TestUtil;
+import org.apache.lucene.util.Version;
 
 // TODO:
 //   - old parallel indices are only pruned on commit/close; can we do it on refresh?
@@ -81,7 +82,7 @@ import org.apache.lucene.util.TestUtil;
  *  since they will just be regnerated (at a cost though). */
 
 // @SuppressSysoutChecks(bugUrl="we print stuff")
-
+// See: https://issues.apache.org/jira/browse/SOLR-12028 Tests cannot remove files on Windows machines occasionally
 public class TestDemoParallelLeafReader extends LuceneTestCase {
 
   static final boolean DEBUG = false;
@@ -128,17 +129,14 @@ public class TestDemoParallelLeafReader extends LuceneTestCase {
       }
       w = new IndexWriter(indexDir, iwc);
 
-      w.getConfig().setMergedSegmentWarmer(new IndexWriter.IndexReaderWarmer() {
-          @Override
-          public void warm(LeafReader reader) throws IOException {
-            // This will build the parallel index for the merged segment before the merge becomes visible, so reopen delay is only due to
-            // newly flushed segments:
-            if (DEBUG) System.out.println(Thread.currentThread().getName() +": TEST: now warm " + reader);
-            // TODO: it's not great that we pass false here; it means we close the reader & reopen again for NRT reader; still we did "warm" by
-            // building the parallel index, if necessary
-            getParallelLeafReader(reader, false, getCurrentSchemaGen());
-          }
-        });
+      w.getConfig().setMergedSegmentWarmer((reader) -> {
+        // This will build the parallel index for the merged segment before the merge becomes visible, so reopen delay is only due to
+        // newly flushed segments:
+        if (DEBUG) System.out.println(Thread.currentThread().getName() +": TEST: now warm " + reader);
+        // TODO: it's not great that we pass false here; it means we close the reader & reopen again for NRT reader; still we did "warm" by
+        // building the parallel index, if necessary
+        getParallelLeafReader(reader, false, getCurrentSchemaGen());
+      });
 
       // start with empty commit:
       w.commit();
@@ -236,8 +234,11 @@ public class TestDemoParallelLeafReader extends LuceneTestCase {
             firstExc = t;
           }
         }
+        
         // throw the first exception
-        IOUtils.reThrow(firstExc);
+        if (firstExc != null) {
+          throw IOUtils.rethrowAlways(firstExc);
+        }
       }
 
       @Override
@@ -414,7 +415,7 @@ public class TestDemoParallelLeafReader extends LuceneTestCase {
 
             SegmentInfos infos = SegmentInfos.readLatestCommit(dir);
             assert infos.size() == 1;
-            final LeafReader parLeafReader = new SegmentReader(infos.info(0), IOContext.DEFAULT);
+            final LeafReader parLeafReader = new SegmentReader(infos.info(0), Version.LATEST.major, IOContext.DEFAULT);
 
             //checkParallelReader(leaf, parLeafReader, schemaGen);
 
@@ -548,10 +549,11 @@ public class TestDemoParallelLeafReader extends LuceneTestCase {
             }
           }
 
-          // If any error occured, throw it.
-          IOUtils.reThrow(th);
+          if (th != null) {
+            throw IOUtils.rethrowAlways(th);
+          }
         }
-    
+
         @Override
         public void setMergeInfo(SegmentCommitInfo info) {
           // Record that this merged segment is current as of this schemaGen:

@@ -146,8 +146,11 @@ public class SolrLogLayout extends Layout {
      ***/
     
     SolrRequestInfo requestInfo = SolrRequestInfo.getRequestInfo();
-    SolrQueryRequest req = requestInfo == null ? null : requestInfo.getReq();
-    SolrCore core = req == null ? null : req.getCore();
+
+    SolrCore core;
+    try (SolrQueryRequest req = (requestInfo == null) ? null : requestInfo.getReq()) {
+      core = (req == null) ? null : req.getCore();
+    }
     ZkController zkController = null;
     CoreInfo info = null;
     
@@ -164,7 +167,7 @@ public class SolrLogLayout extends Layout {
         sb.append(" " + core);
       }
 
-      zkController = core.getCoreDescriptor().getCoreContainer().getZkController();
+      zkController = core.getCoreContainer().getZkController();
       if (zkController != null) {
         if (info.url == null) {
           info.url = zkController.getBaseUrl() + "/" + core.getName();

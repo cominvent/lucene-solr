@@ -115,7 +115,7 @@ public class ZkContainer {
               @Override
               public List<CoreDescriptor> getCurrentDescriptors() {
                 List<CoreDescriptor> descriptors = new ArrayList<>(
-                    cc.getCoreNames().size());
+                    cc.getLoadedCoreNames().size());
                 Collection<SolrCore> cores = cc.getCores();
                 for (SolrCore core : cores) {
                   descriptors.add(core.getCoreDescriptor());
@@ -226,6 +226,8 @@ public class ZkContainer {
         ZkContainer.log.error("", e);
       } catch (InterruptedException e) {
         Thread.interrupted();
+        ZkContainer.log.error("", e);
+      } catch (Exception e) {
         ZkContainer.log.error("", e);
       }
     }
