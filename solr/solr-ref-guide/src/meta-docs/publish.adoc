@@ -74,6 +74,7 @@ $ ~/lucene-source/dev-tools/scripts/prep-solr-ref-guide-rc.sh apache-solr-ref-gu
 + mv apache-solr-ref-guide-7.0.pdf apache-solr-ref-guide-7.0-RC0/apache-solr-ref-guide-7.0.pdf
 + cd apache-solr-ref-guide-7.0-RC0
 + shasum apache-solr-ref-guide-7.0.pdf
++ shasum -a 512 apache-solr-ref-guide-7.0.pdf
 + gpg -u DEADBEEF --armor --output apache-solr-ref-guide-7.0.pdf.asc --detach-sig apache-solr-ref-guide-7.0.pdf
 
 You need a passphrase to unlock the secret key for
