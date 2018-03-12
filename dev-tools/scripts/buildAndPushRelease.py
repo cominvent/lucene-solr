@@ -91,31 +91,6 @@ def prepare(root, version, gpgKeyID, gpgPassword):
   if os.path.exists(LOG):
     os.remove(LOG)
 
-  if gpgKeyID is not None:
-    print('  Verify your gpg key is in KEYS file')
-    keysFileURL = "https://archive.apache.org/dist/lucene/KEYS"
-    keysFileText = urllib.request.urlopen(keysFileURL).read().decode('iso-8859-1')
-    if len(gpgKeyID) > 2 and gpgKeyID[0:2] == '0x':
-      gpgKeyID = gpgKeyID[2:]
-    if len(gpgKeyID) > 40:
-      gpgKeyID = gpgKeyID.replace(" ", "")
-    if len(gpgKeyID) == 8:
-      re_to_match = r"^pub\s+\d+[DR]/%s " % gpgKeyID
-    elif len(gpgKeyID) == 40:
-      gpgKeyID40Char = "%s %s %s %s %s  %s %s %s %s %s" % \
-                       (gpgKeyID[0:4], gpgKeyID[4:8], gpgKeyID[8:12], gpgKeyID[12:16], gpgKeyID[16:20],
-                       gpgKeyID[20:24], gpgKeyID[24:28], gpgKeyID[28:32], gpgKeyID[32:36], gpgKeyID[36:])
-      print("Generated id string %s" % gpgKeyID40Char)
-      re_to_match = r"^\s+Key fingerprint = %s$" % gpgKeyID40Char
-    else:
-      print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
-      exit(2)
-    if re.search(re_to_match, keysFileText, re.MULTILINE):
-      print('    Found key %s in KEYS file at %s' % (gpgKeyID, keysFileURL))
-    else:
-      print('    ERROR: Did not find your key %s in KEYS file at %s. Please add it, push it online and try again.' % (gpgKeyID, keysFileURL))
-      exit(2)
-
   os.chdir(root)
   print('  git pull...')
   run('git pull')
@@ -264,6 +239,8 @@ def parse_config():
                                    formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument('--no-prepare', dest='prepare', default=True, action='store_false',
                       help='Use the already built release in the provided checkout')
+  parser.add_argument('--no-check-keys', dest='checkKeys', default=True, action='store_false',
+                      help='Skips downloading online KEYS file to validate existence of GPG key ID')
   parser.add_argument('--push-local', metavar='PATH',
                       help='Push the release to the local path')
   parser.add_argument('--sign', metavar='KEYID',
@@ -308,12 +285,42 @@ def check_cmdline_tools():  # Fail fast if there are cmdline tool problems
   antVersion = os.popen('ant -version').read().strip()
   if not antVersion.startswith('Apache Ant(TM) version 1.8') and not antVersion.startswith('Apache Ant(TM) version 1.9'):
     raise RuntimeError('ant version is not 1.8.X: "%s"' % antVersion)
-  
+
+
+def check_key_in_keys(gpgKeyID):
+  if gpgKeyID is not None:
+    print('  Verify your gpg key is in the main KEYS file')
+    keysFileURL = "https://archive.apache.org/dist/lucene/KEYS"
+    keysFileText = urllib.request.urlopen(keysFileURL).read().decode('iso-8859-1')
+    if len(gpgKeyID) > 2 and gpgKeyID[0:2] == '0x':
+      gpgKeyID = gpgKeyID[2:]
+    if len(gpgKeyID) > 40:
+      gpgKeyID = gpgKeyID.replace(" ", "")
+    if len(gpgKeyID) == 8:
+      re_to_match = r"^pub\s+\d+[DR]/%s " % gpgKeyID
+    elif len(gpgKeyID) == 40:
+      gpgKeyID40Char = "%s %s %s %s %s  %s %s %s %s %s" % \
+                       (gpgKeyID[0:4], gpgKeyID[4:8], gpgKeyID[8:12], gpgKeyID[12:16], gpgKeyID[16:20],
+                       gpgKeyID[20:24], gpgKeyID[24:28], gpgKeyID[28:32], gpgKeyID[32:36], gpgKeyID[36:])
+      print("Generated id string %s" % gpgKeyID40Char)
+      re_to_match = r"^\s+Key fingerprint = %s$" % gpgKeyID40Char
+    else:
+      print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
+      exit(2)
+    if re.search(re_to_match, keysFileText, re.MULTILINE):
+      print('    Found key %s in KEYS file at %s' % (gpgKeyID, keysFileURL))
+    else:
+      print('    ERROR: Did not find your key %s in KEYS file at %s. Please add it, push it online and try again.' % (gpgKeyID, keysFileURL))
+      exit(2)
+
+
 def main():
   check_cmdline_tools()
 
   c = parse_config()
 
+  check_key_in_keys(c.key_id)
+  
   if c.prepare:
     rev = prepare(c.root, c.version, c.key_id, c.key_password)
   else:
