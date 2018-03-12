@@ -319,7 +319,8 @@ def main():
 
   c = parse_config()
 
-  check_key_in_keys(c.key_id)
+  if c.checkKeys:
+    check_key_in_keys(c.key_id)
   
   if c.prepare:
     rev = prepare(c.root, c.version, c.key_id, c.key_password)
