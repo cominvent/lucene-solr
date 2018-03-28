@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Strings;
 import org.apache.commons.lang.StringUtils;
-import org.apache.solr.client.solrj.cloud.autoscaling.SolrCloudManager;
+import org.apache.solr.client.solrj.cloud.SolrCloudManager;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient.Builder;
@@ -898,18 +898,19 @@ public class ZkController {
     publishNodeAsDown(getNodeName());
 
     Set<String> collectionsWithLocalReplica = ConcurrentHashMap.newKeySet();
-    for (SolrCore core : cc.getCores()) {
-      collectionsWithLocalReplica.add(core.getCoreDescriptor().getCloudDescriptor().getCollectionName());
+    for (CoreDescriptor descriptor : cc.getCoreDescriptors()) {
+      collectionsWithLocalReplica.add(descriptor.getCloudDescriptor().getCollectionName());
     }
 
     CountDownLatch latch = new CountDownLatch(collectionsWithLocalReplica.size());
     for (String collectionWithLocalReplica : collectionsWithLocalReplica) {
       zkStateReader.registerCollectionStateWatcher(collectionWithLocalReplica, (liveNodes, collectionState) -> {
+        if (collectionState == null)  return false;
         boolean foundStates = true;
-        for (SolrCore core : cc.getCores()) {
-          if (core.getCoreDescriptor().getCloudDescriptor().getCollectionName().equals(collectionWithLocalReplica))  {
-            Replica replica = collectionState.getReplica(core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
-            if (replica.getState() != Replica.State.DOWN) {
+        for (CoreDescriptor coreDescriptor : cc.getCoreDescriptors()) {
+          if (coreDescriptor.getCloudDescriptor().getCollectionName().equals(collectionWithLocalReplica))  {
+            Replica replica = collectionState.getReplica(coreDescriptor.getCloudDescriptor().getCoreNodeName());
+            if (replica == null || replica.getState() != Replica.State.DOWN) {
               foundStates = false;
             }
           }
@@ -1138,7 +1139,7 @@ public class ZkController {
         }
 
         if (isRunningInNewLIR && replicaType != Type.PULL) {
-          shardTerms.addListener(new RecoveringCoreTermWatcher(core));
+          shardTerms.addListener(new RecoveringCoreTermWatcher(core.getCoreDescriptor(), getCoreContainer()));
         }
         core.getCoreDescriptor().getCloudDescriptor().setHasRegistered(true);
       }
@@ -1146,6 +1147,9 @@ public class ZkController {
       // make sure we have an update cluster state right away
       zkStateReader.forceUpdateCollection(collection);
       return shardId;
+    } catch (Exception e) {
+      unregister(coreName, desc, false);
+      throw e;
     } finally {
       MDCLoggingContext.clear();
     }
@@ -1493,6 +1497,10 @@ public class ZkController {
   }
 
   public void unregister(String coreName, CoreDescriptor cd) throws Exception {
+    unregister(coreName, cd, true);
+  }
+
+  public void unregister(String coreName, CoreDescriptor cd, boolean removeCoreFromZk) throws Exception {
     final String coreNodeName = cd.getCloudDescriptor().getCoreNodeName();
     final String collection = cd.getCloudDescriptor().getCollectionName();
     getCollectionTerms(collection).remove(cd.getCloudDescriptor().getShardId(), cd);
@@ -1504,7 +1512,7 @@ public class ZkController {
     }
     final DocCollection docCollection = zkStateReader.getClusterState().getCollectionOrNull(collection);
     Replica replica = (docCollection == null) ? null : docCollection.getReplica(coreNodeName);
-    
+
     if (replica == null || replica.getType() != Type.PULL) {
       ElectionContext context = electionContexts.remove(new ContextKey(collection, coreNodeName));
 
@@ -1514,14 +1522,15 @@ public class ZkController {
     }
     CloudDescriptor cloudDescriptor = cd.getCloudDescriptor();
     zkStateReader.unregisterCore(cloudDescriptor.getCollectionName());
-
-    ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION,
-        OverseerAction.DELETECORE.toLower(), ZkStateReader.CORE_NAME_PROP, coreName,
-        ZkStateReader.NODE_NAME_PROP, getNodeName(),
-        ZkStateReader.COLLECTION_PROP, cloudDescriptor.getCollectionName(),
-        ZkStateReader.BASE_URL_PROP, getBaseUrl(),
-        ZkStateReader.CORE_NODE_NAME_PROP, coreNodeName);
-    overseerJobQueue.offer(Utils.toJSON(m));
+    if (removeCoreFromZk) {
+      ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION,
+          OverseerAction.DELETECORE.toLower(), ZkStateReader.CORE_NAME_PROP, coreName,
+          ZkStateReader.NODE_NAME_PROP, getNodeName(),
+          ZkStateReader.COLLECTION_PROP, cloudDescriptor.getCollectionName(),
+          ZkStateReader.BASE_URL_PROP, getBaseUrl(),
+          ZkStateReader.CORE_NODE_NAME_PROP, coreNodeName);
+      overseerJobQueue.offer(Utils.toJSON(m));
+    }
   }
 
   public void createCollection(String collection) throws Exception {
@@ -2166,7 +2175,8 @@ public class ZkController {
       }
 
       // we only really need to try to start the LIR process if the node itself is "live"
-      if (getZkStateReader().getClusterState().liveNodesContain(replicaNodeName)) {
+      if (getZkStateReader().getClusterState().liveNodesContain(replicaNodeName)
+          && CloudUtil.replicaExists(getZkStateReader().getClusterState(), collection, shardId, replicaCoreNodeName)) {
 
         LeaderInitiatedRecoveryThread lirThread =
             new LeaderInitiatedRecoveryThread(this,
@@ -2191,9 +2201,8 @@ public class ZkController {
             replicaNodeName + " into leader-initiated recovery.", replicaCoreProps.getCoreName(), replicaCoreNodeName);
       } else {
         nodeIsLive = false; // we really don't need to send the recovery request if the node is NOT live
-        log.info("Node " + replicaNodeName +
-                " is not live, so skipping leader-initiated recovery for replica: core={} coreNodeName={}",
-            replicaCoreProps.getCoreName(), replicaCoreNodeName);
+        log.info("Node {} is not live or replica {} is deleted, so skipping leader-initiated recovery for replica: core={}",
+            replicaNodeName, replicaCoreNodeName, replicaCoreProps.getCoreName());
         // publishDownState will be false to avoid publishing the "down" state too many times
         // as many errors can occur together and will each call into this method (SOLR-6189)
       }

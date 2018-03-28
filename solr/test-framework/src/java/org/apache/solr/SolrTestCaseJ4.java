@@ -70,6 +70,7 @@ import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.http.client.HttpClient;
+import org.apache.logging.log4j.Level;
 import org.apache.lucene.analysis.MockAnalyzer;
 import org.apache.lucene.analysis.MockTokenizer;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -396,7 +397,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     return result;
   }
 
-  private static Map<String, String> savedClassLogLevels = new HashMap<>();
+  private static Map<String, Level> savedClassLogLevels = new HashMap<>();
 
   public static void initClassLogLevels() {
     Class currentClass = RandomizedContext.current().getTargetClass();
@@ -404,11 +405,11 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     if (annotation == null) {
       return;
     }
-    Map<String, String> previousLevels = LogLevel.Configurer.setLevels(annotation.value());
+    Map<String, Level> previousLevels = LogLevel.Configurer.setLevels(annotation.value());
     savedClassLogLevels.putAll(previousLevels);
   }
 
-  private Map<String, String> savedMethodLogLevels = new HashMap<>();
+  private Map<String, Level> savedMethodLogLevels = new HashMap<>();
 
   @Before
   public void initMethodLogLevels() {
@@ -417,7 +418,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     if (annotation == null) {
       return;
     }
-    Map<String, String> previousLevels = LogLevel.Configurer.setLevels(annotation.value());
+    Map<String, Level> previousLevels = LogLevel.Configurer.setLevels(annotation.value());
     savedMethodLogLevels.putAll(previousLevels);
   }
 
@@ -800,6 +801,11 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
     if (factoryProp == null) {
       System.clearProperty("solr.directoryFactory");
+    }
+
+    if (System.getProperty(UPDATELOG_SYSPROP) != null) {
+      // clears the updatelog sysprop at the end of the test run
+      System.clearProperty(UPDATELOG_SYSPROP);
     }
     
     solrConfig = null;
@@ -2703,7 +2709,21 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
    * @see #randomizeNumericTypesProperties
    */
   public static final String NUMERIC_DOCVALUES_SYSPROP = "solr.tests.numeric.dv";
-  
+
+  public static final String UPDATELOG_SYSPROP = "solr.tests.ulog";
+
+  /**
+   * randomizes the updateLog between different update log implementations for better test coverage
+   */
+  public static void randomizeUpdateLogImpl() {
+    if (random().nextBoolean()) {
+      System.setProperty(UPDATELOG_SYSPROP, "solr.CdcrUpdateLog");
+    } else {
+      System.setProperty(UPDATELOG_SYSPROP,"solr.UpdateLog");
+    }
+    log.info("updateLog impl={}", System.getProperty(UPDATELOG_SYSPROP));
+  }
+
   /**
    * Sets various sys props related to user specified or randomized choices regarding the types 
    * of numerics that should be used in tests.

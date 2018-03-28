@@ -36,6 +36,94 @@ Upgrade Notes
   when a negative value is produced. This change is due to the fact that
   Lucene now requires scores to be positive. (Adrien Grand)
 
+==================  7.4.0 ==================
+
+Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release.
+
+Versions of Major Components
+---------------------
+Apache Tika 1.17
+Carrot2 3.15.0
+Velocity 1.7 and Velocity Tools 2.0
+Apache UIMA 2.3.1
+Apache ZooKeeper 3.4.11
+Jetty 9.4.8.v20171121
+
+Upgrade Notes
+----------------------
+
+* SOLR-7887: Solr now uses Log4J 2.11 . The log4j configuration is now in log4j2.xml rather than log4j.properties files.
+  This is a server side change only and clients using SolrJ won't need any changes. Clients can still use any logging
+  implementation which is compatible with SLF4J.
+
+New Features
+----------------------
+
+* SOLR-11670: Implement a periodic house-keeping task. This uses a scheduled autoscaling trigger and
+  currently performs cleanup of old inactive shards. (ab, shalin)
+
+* SOLR-12015: Add support "add-distinct" in AtomicURP so that we can use the 'add-distict' as a request parameter e.g:
+  atomic.<multival-field-name>=add-distict (Amrit Sarkar via noble)
+
+* SOLR-7887: Upgrade Solr to use Log4J 2.11
+ (Tim Potter, Keith Laban, Shawn Heisey, Ralph Goers, Erick Erickson, Varun Thacker)
+
+Bug Fixes
+----------------------
+
+* SOLR-12103: Raise CryptoKeys.DEFAULT_KEYPAIR_LENGTH from 1024 to 2048. (Mark Miller)
+
+* SOLR-12107: Fixed a error in [child] transformer that could ocur if documentCache was not used (hossman)
+
+* SOLR-12108: Fixed the fallback behavior of [raw] and [xml] transformers when an incompatble 'wt' was
+  specified, the field value was lost if documentCache was not used.  (hossman)
+
+* SOLR-12087: Deleting replicas sometimes fails and causes the replicas to exist in the down 
+  state (Cao Manh Dat)
+
+* SOLR-11551: Standardize CoreAdmin API success/failure status codes (Jason Gerlowski, Steve Rowe)
+
+* SOLR-12035: ExtendedDismaxQParser fails to include charfilters in nostopanalyzer (Tim Allison via
+  Tomás Fernández Löbbe)
+
+Optimizations
+----------------------
+
+* SOLR-11920: IndexFetcher now fetches only those files (from master/leader) that are different. This
+  differential fetching now speeds up recovery times when full index replication is needed, but only
+  a few segments diverge. (Ishan Chattopadhyaya, Shaun Sabo, John Gallagher)
+
+* SOLR-11731: LatLonPointSpatialField can now decode points from docValues when stored=false docValues=true,
+  albeit with maximum precision of 1.33cm (Karthik Ramachandran, David Smiley)
+
+* SOLR-11891: DocStreamer now respects the ReturnFields when populating a SolrDocument, reducing the
+  number of unneccessary fields a ResponseWriter will see if documentCache is used (wei wang, hossman)
+
+* SOLR-12146: LIR should skip deleted replicas (Cao Manh Dat)
+
+Other Changes
+----------------------
+
+* SOLR-12076: Remove unnecessary printLayout usage in CDCR tests (Varun Thacker)
+
+* SOLR-12086: Fix format problem in FastLRUCache description string shown on Cache Statistics page.
+  (Sathiya N Sundararajan via shalin)
+
+* SOLR-12090: Move DistribStateManager, NodeStateProvider and SolrCloudManager interfaces out of the
+  autoscaling package. (shalin)
+
+* SOLR-12091: Rename TimeSource.getTime to getTimeNs. (ab)
+
+* SOLR-12101: ZkTestServer was not handling connection timeout settings properly. (Gus Heck via Mark Miller)
+
+* SOLR-11331: Ability to run and debug standalone Solr and a single node SolrCloud server from Eclipse.
+  Also being able to run all Lucene and Solr tests as a configuration (Karthik Ramachandran via
+  Varun Thacker, Uwe Schindler)
+
+* SOLR-12118: Solr Ref-Guide can now use some ivy version props directly as attributes in content (hossman)
+
+* SOLR-10734: Multithreaded test/support for AtomicURP broken. (Ishan Chattopadhyaya, Noble Paul, Amrit Sarkar, shalin)
+
 ==================  7.3.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release.
@@ -71,9 +159,9 @@ Upgrade Notes
   Before 7.3, the copied over configset was named the same as the collection name, but 7.3 onwards it will be named
   with an additional ".AUTOCREATED" suffix.
 
-* SOLR-11702: The old LIR implementation (SOLR-5495) is now deprecated and replaced.
-  Solr will support rolling upgrades from old 7.x versions of Solr to the new one until
-  the last release of the 7.x major version.
+* SOLR-11702: The old Leader-In-Recovery implementation (SOLR-5495) is now deprecated and replaced. Solr will support
+  rolling upgrades from old 7.x versions of Solr to future 7.x releases until the last release of
+  the 7.x major version. This means in order to upgrade to Solr 8 in the future, you must be on Solr 7.3 or higher.
 
 * LUCENE-8161: If you are using the spatial JTS library with Solr, you must upgrade to 1.15.0.  This new version
   of JTS is now dual-licensed to include a BSD style license.
@@ -131,8 +219,8 @@ New Features
 
 * SOLR-11782: Refactor LatchWatcher.await to protect against spurious wakeup (Tomás Fernández Löbbe, David Smiley, Dawid Weiss)
 
-* SOLR-11617: Alias metadata is now mutable via a new MODIFYALIAS command.  Metadata is returned from LISTALIASES.
-  (Gus Heck via David Smiley)
+* SOLR-11617: Alias properties (formerly "metadata") are now mutable via a new ALIASPROP command.
+  These properties are returned from LISTALIASES. (Gus Heck via David Smiley)
 
 * SOLR-11702: Redesign current LIR implementation (Cao Manh Dat, shalin)
 
@@ -195,10 +283,10 @@ New Features
 
 * SOLR-11960: Add collection level properties similar to cluster properties (Peter Rusko, Tomás Fernández Löbbe)
 
-* SOLR-11670: Implement a periodic house-keeping task. This uses a scheduled autoscaling trigger and
-  currently performs cleanup of old inactive shards. (ab, shalin)
-
 * SOLR-12077: Add support for autoAddReplicas in the collection creation dialog in Admin UI. (shalin)
+
+* SOLR-9510: introducing {!filters param=$fq excludeTags=f} query parser. 
+  Introducing {!.. filters=$fq excludeTags=t,q} in {!parent} and {!child} (Dr. Oleg Savrasov via Mikhail Khludnev)
 
 Bug Fixes
 ----------------------
@@ -274,6 +362,23 @@ Bug Fixes
 
 * SOLR-12072: Invalid path string using ZkConfigManager.copyConfigDir(String fromConfig, String toConfig)
   (Alessandro Hoss via Erick Erickson)
+
+* SOLR-12064: JSON Facet API: fix bug where a limit of -1 in conjunction with multiple facets or
+  missing=true caused an NPE or AIOOBE. (Karthik Ramachandran via yonik)
+
+* SOLR-12083: Fix RealTime GET to work on a cluster running CDCR when using Solr's in-place updates
+  (Amrit Sarkar, Varun Thacker)
+
+* SOLR-12063: Fix PeerSync, Leader Election failures and CDCR checkpoint inconsistencies on a cluster running CDCR
+  (Amrit Sarkar, Varun Thacker)
+
+* SOLR-12110: Replica which failed to register in Zk can become leader (Cao Manh Dat)
+
+* SOLR-12129: After the core is reloaded, term of the core will not be watched (Cao Manh Dat)
+
+* SOLR-12141: Fix "bin/solr" shell scripts (Windows/Linux/Mac) to correctly detect major Java version
+  and use numerical version comparison to enforce minimum requirements. Also remove obsolete "UseParNewGC" option.
+  This allows to start Solr with Java 10 or later. (Uwe Schindler)
 
 Optimizations
 ----------------------
@@ -391,6 +496,17 @@ Other Changes
 * SOLR-12067: Increase autoAddReplicas default 30 second wait time to 120 seconds.
   (Varun Thacker, Mark Miller via shalin)
 
+* SOLR-12078: Fixed reproducable Failure in TestReplicationHandler.doTestIndexFetchOnMasterRestart that happened
+  due to using stale http connections. (Gus Heck, shalin)
+
+* SOLR-12099: Remove reopenReaders attribute from 'IndexConfig in SolrConfig' page in ref guide. (shalin)
+
+* SOLR-12098: Document the Lucene spins auto-detection and its effect on CMS dynamic defaults.
+  (Cassandra Targett, shalin)
+
+* SOLR-12097: Document the diskType policy attribute and usage of disk space in Collection APIs.
+  (Cassandra Targett, shalin)
+
 ==================  7.2.1 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release.
@@ -448,7 +564,7 @@ Upgrade Notes
 * SOLR-11501: The edismax parser by default no longer allows subqueries that specify a Solr parser using either
   local-params, or the older _query_ magic field trick.  For example
   {!prefix f=myfield v=enterp}  or  _query_:"{!prefix f=myfield v=enterp}"   are not supported by default anymore.
-  If you want to allow power-users to do this, set uf=*,_query_ or some other value that includes _query_.
+  If you want to allow power-users to do this, set uf=* _query_ or some other value that includes _query_.
   If you must have full backwards compatibility, use luceneMatchVersion=7.1.0 or something earlier. (David Smiley)
 
 New Features

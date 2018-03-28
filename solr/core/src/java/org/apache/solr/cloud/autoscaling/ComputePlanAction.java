@@ -32,7 +32,7 @@ import org.apache.solr.client.solrj.cloud.autoscaling.AutoScalingConfig;
 import org.apache.solr.client.solrj.cloud.autoscaling.NoneSuggester;
 import org.apache.solr.client.solrj.cloud.autoscaling.Policy;
 import org.apache.solr.client.solrj.cloud.autoscaling.PolicyHelper;
-import org.apache.solr.client.solrj.cloud.autoscaling.SolrCloudManager;
+import org.apache.solr.client.solrj.cloud.SolrCloudManager;
 import org.apache.solr.client.solrj.cloud.autoscaling.Suggester;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.cloud.ClusterState;
@@ -95,6 +95,10 @@ public class ComputePlanAction extends TriggerActionBase {
           opLimit = requestedOperations;
         }
         do {
+          // computing changes in large clusters may take a long time
+          if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("stopping - thread was interrupted");
+          }
           SolrRequest operation = suggester.getSuggestion();
           opCount++;
           // prepare suggester for the next iteration

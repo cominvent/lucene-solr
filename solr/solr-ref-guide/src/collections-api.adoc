@@ -245,6 +245,10 @@ This command allows for seamless splitting and requires no downtime. A shard bei
 
 The split is performed by dividing the original shard's hash range into two equal partitions and dividing up the documents in the original shard according to the new sub-ranges. Two parameters discussed below, `ranges` and `split.key` provide further control over how the split occurs.
 
+The newly created shards will have as many replicas as the parent shard.
+
+You must ensure that the node running the leader of the parent shard has enough free disk space i.e. more than twice the index size, for the split to succeed. The API uses the Autoscaling framework to find nodes that can satisfy the disk requirements for the new replicas but only when an Autoscaling policy is configured. Refer to <<solrcloud-autoscaling-policy-preferences.adoc#solrcloud-autoscaling-policy-preferences,Autoscaling Policy and Preferences>> section for more details.
+
 Shard splitting can be a long running process. In order to avoid timeouts, you should run this as an <<Asynchronous Calls,asynchronous call>>.
 
 === SPLITSHARD Parameters
@@ -487,17 +491,17 @@ distributing documents among the referenced collections so all updates will go t
 `/admin/collections?action=CREATEALIAS&name=_name_&collections=_collectionlist_`
 
 Routed aliases are more complex to configure, but include logic for automatically inspecting a field on the document
-and using the value in that field to select a destination collection. Additionally the routed alias automates the
+and using the value in that field to select a destination collection. Additionally, the routed alias automates the
 partitioning of data across a series of collections by creating new collections periodically. This feature allows for
 indefinite indexing of data without degradation of performance otherwise experienced due to the continuous growth of
 an index. As new data arrives, a field on the document is inspected and the document is then potentially re-routed to
 another collection. The underlying collections can can be queried independently but usually the alias will be used.
 These collections are created automatically on the fly as new data arrives based on the parameters supplied in this
-command. Also for very high volume use cases or for use cases requiring only a limited span of data to be retained,
+command. For very high volume use cases or for use cases requiring only a limited span of data to be retained,
 collections older than a given age can be deleted. This delete of old collections only occurs if new documents are
 sent to the alias.
 
-*NOTE:* Presently this is only supported for temporal fields stored as a
+NOTE: Presently this is only supported for temporal fields stored as a
 <<field-types-included-with-solr.adoc#field-types-included-with-solr,DatePointField or TrieDateField>> type. Other
 well ordered field types may be added in future versions.
 
@@ -506,24 +510,24 @@ well ordered field types may be added in future versions.
 localhost:8983/solr/admin/collections?action=CREATEALIAS&name=timedata&router.start=NOW/DAY&router.field=evt_dt&router.name=time&router.interval=%2B1DAY&router.maxFutureMs=3600000&create-collection.collection.configName=myConfig&create-collection.numShards=2
 ----
 
-If run on Jan 15, 2018 The above will create an alias named timedata, that contains collections with names prefixed with
-`timedata` and an initial collection named `timedata_2018_01_15` will be created immediately. Updates sent to this
+If run on Jan 15, 2018, the above will create an alias named timedata, that contains collections with names prefixed
+with `timedata` and an initial collection named `timedata_2018_01_15` will be created immediately. Updates sent to this
 alias with a (required) value in `evt_dt` that is before or after 2018-01-15 will be rejected, until the last 60
 minutes of 2018-01-15. After 2018-01-15T23:00:00 documents for either 2018-01-15 or 2018-01-16 will be accepted.
 As soon as the system receives a document for an allowable time window for which there is no collection it will
-automatically create the next required collection (and potentially any intervening collections if router.interval is
-smaller than router.maxFutureMs). Both the initial collection and any subsequent collections will be created using
-the specified configset. All Collection creation parameters other than `name` are allowed, prefixed
+automatically create the next required collection (and potentially any intervening collections if `router.interval` is
+smaller than `router.maxFutureMs`). Both the initial collection and any subsequent collections will be created using
+the specified configset. All collection creation parameters other than `name` are allowed, prefixed
 by `create-collection.`
 
 This means that one could, for example, partition their collections by day, and within each daily collection route
-the data to shards based on customer id. Such shards can be of any type (NRT, PULL or TLOG), and rule based replica
+the data to shards based on customer id. Such shards can be of any type (NRT, PULL or TLOG), and rule-based replica
 placement strategies may also be used.
 
 The values supplied in this command for collection creation will be retained
-in alias metadata, and can be verified by inspecting `aliases.json` in ZooKeeper.
+in alias properties, and can be verified by inspecting `aliases.json` in ZooKeeper.
 
-*NOTE:* Presently only updates are routed and queries are distributed to all collections in the alias, but future
+NOTE: Presently only updates are routed and queries are distributed to all collections in the alias, but future
 features may enable routing of the query to the single appropriate collection based on a special parameter or perhaps
 a filter on the routed field.
 
@@ -559,7 +563,7 @@ just fine. This parameter is required.
 `TZ`::
 The timezone to be used when evaluating any date math in router.start or router.interval. This is equivalent to the
 same parameter supplied to search queries, but understand in this case it's persisted with most of the other parameters
-as alias metadata.
+as an alias property.
 +
 If GMT-4 is supplied for this value then a document dated 2018-01-14T21:00:00:01.2345Z would be stored in the
 myAlias_2018-01-15_01 collection (assuming an interval of +1HOUR).
@@ -740,7 +744,7 @@ http://localhost:8983/solr/admin/collections?action=LISTALIASES&wt=xml
         <str name="testalias1">collection1</str>
         <str name="testalias2">collection1,collection2</str>
     </lst>
-    <lst name="metadata">
+    <lst name="properties">
         <lst name="testalias1"/>
         <lst name="testalias2">
             <str name="someKey">someValue</str>
@@ -749,37 +753,39 @@ http://localhost:8983/solr/admin/collections?action=LISTALIASES&wt=xml
 </response>
 ----
 
-[[modifyalias]]
-== MODIFYALIAS: Modify Alias Metadata for a Collection
+[[aliasprop]]
+== ALIASPROP: Modify Alias Properties for a Collection
 
-The `MODIFYALIAS` action modifies the metadata on an alias. If a key is set with a value that is empty it will be removed.
+The `ALIASPROP` action modifies the properties (metadata) on an alias. If a key is set with a value that is empty it will be removed.
 
-`/admin/collections?action=MODIFYALIAS&name=_name_&metadata.someKey=somevalue`
+`/admin/collections?action=ALIASPROP&name=_name_&property.someKey=somevalue`
 
-=== MODIFYALIAS Parameters
+=== ALIASPROP Parameters
 
 `name`::
-The alias name on which to set metadata. This parameter is required.
+The alias name on which to set properties. This parameter is required.
 
-`metadata.*`::
-The name of the key for the metadata element to be modified replaces '*', the value for the parameter is passed as the value for the metadata.
+`property.*`::
+The name of the property to be modified replaces '*', the value for the parameter is passed as the value for the property.
 
 `async`::
 Request ID to track this action which will be <<Asynchronous Calls,processed asynchronously>>.
 
-=== MODIFYALIAS Response
+=== ALIASPROP Response
 
-The output will simply be a responseHeader with details of the time it took to process the request. To confirm the creation of the metadata, you can look in the Solr Admin UI, under the Cloud section and find the `aliases.json` file or use the LISTALIASES api command.
+The output will simply be a responseHeader with details of the time it took to process the request.
+To confirm the creation of the property or properties, you can look in the Solr Admin UI, under the Cloud section and
+find the `aliases.json` file or use the LISTALIASES api command.
 
-=== Examples using MODIFYALIAS
+=== Examples using ALIASPROP
 
 *Input*
 
-For an alias named "testalias2" and set the value "someValue" for a metadata key of "someKey" and "otherValue" for "otherKey".
+For an alias named "testalias2" and set the value "someValue" for a property of "someKey" and "otherValue" for "otherKey".
 
 [source,text]
 ----
-http://localhost:8983/solr/admin/collections?action=MODIFYALIAS&name=testalias2&metadata.someKey=someValue&metadata.otherKey=otherValue&wt=xml
+http://localhost:8983/solr/admin/collections?action=ALIASPROP&name=testalias2&property.someKey=someValue&property.otherKey=otherValue&wt=xml
 ----
 
 *Output*
@@ -809,7 +815,9 @@ Request ID to track this action which will be <<Asynchronous Calls,processed asy
 
 === DELETEALIAS Response
 
-The output will simply be a responseHeader with details of the time it took to process the request. To confirm the removal of the alias, you can look in the Solr Admin UI, under the Cloud section, and find the `aliases.json` file.
+The output will simply be a responseHeader with details of the time it took to process the request.
+To confirm the removal of the alias, you can look in the Solr Admin UI, under the Cloud section, and
+find the `aliases.json` file.
 
 === Examples using DELETEALIAS
 
@@ -955,6 +963,8 @@ http://localhost:8983/solr/admin/collections?action=DELETEREPLICA&collection=tes
 == ADDREPLICA: Add Replica
 
 Add a replica to a shard in a collection. The node name can be specified if the replica is to be created in a specific node.
+
+The API uses the Autoscaling framework to find nodes that can satisfy the disk requirements for the new replica but only when an Autoscaling policy is configured. Refer to <<solrcloud-autoscaling-policy-preferences.adoc#solrcloud-autoscaling-policy-preferences,Autoscaling Policy and Preferences>> section for more details.
 
 `/admin/collections?action=ADDREPLICA&collection=_collection_&shard=_shard_&node=_nodeName_`
 
@@ -2155,6 +2165,8 @@ This command recreates replicas in one node (the source) to another node(s) (the
 
 For source replicas that are also shard leaders the operation will wait for the number of seconds set with the `timeout` parameter to make sure there's an active replica that can become a leader (either an existing replica becoming a leader or the new replica completing recovery and becoming a leader).
 
+The API uses the Autoscaling framework to find nodes that can satisfy the disk requirements for the new replicas but only when an Autoscaling policy is configured. Refer to <<solrcloud-autoscaling-policy-preferences.adoc#solrcloud-autoscaling-policy-preferences,Autoscaling Policy and Preferences>> section for more details.
+
 `/admin/collections?action=REPLACENODE&sourceNode=_source-node_&targetNode=_target-node_`
 
 === REPLACENODE Parameters
@@ -2183,6 +2195,8 @@ This operation does not hold necessary locks on the replicas that belong to on t
 == MOVEREPLICA: Move a Replica to a New Node
 
 This command moves a replica from one node to a new node. In case of shared filesystems the `dataDir` will be reused.
+
+The API uses the Autoscaling framework to find nodes that can satisfy the disk requirements for the replica to be moved but only when an Autoscaling policy is configured. Refer to <<solrcloud-autoscaling-policy-preferences.adoc#solrcloud-autoscaling-policy-preferences,Autoscaling Policy and Preferences>> section for more details.
 
 `/admin/collections?action=MOVEREPLICA&collection=collection&shard=shard&replica=replica&sourceNode=nodeName&targetNode=nodeName`
 

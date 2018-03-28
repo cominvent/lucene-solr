@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.cloud.DistribStateManager;
+import org.apache.solr.client.solrj.cloud.SolrCloudManager;
 import org.apache.solr.client.solrj.cloud.autoscaling.Suggester.Hint;
 import org.apache.solr.client.solrj.impl.ClusterStateProvider;
 import org.apache.solr.common.MapWriter;
@@ -320,7 +322,7 @@ public class PolicyHelper {
       TimeSource timeSource = cloudManager.getTimeSource();
       synchronized (lockObj) {
         if (sessionWrapper.status == Status.NULL ||
-            TimeUnit.SECONDS.convert(timeSource.getTime() - sessionWrapper.lastUpdateTime, TimeUnit.NANOSECONDS) > SESSION_EXPIRY) {
+            TimeUnit.SECONDS.convert(timeSource.getTimeNs() - sessionWrapper.lastUpdateTime, TimeUnit.NANOSECONDS) > SESSION_EXPIRY) {
           //no session available or the session is expired
           return createSession(cloudManager);
         } else {
@@ -423,8 +425,8 @@ public class PolicyHelper {
 
     public SessionWrapper(Policy.Session session, SessionRef ref) {
       lastUpdateTime = createTime = session != null ?
-          session.cloudManager.getTimeSource().getTime() :
-          TimeSource.NANO_TIME.getTime();
+          session.cloudManager.getTimeSource().getTimeNs() :
+          TimeSource.NANO_TIME.getTimeNs();
       this.session = session;
       this.status = Status.UNUSED;
       this.ref = ref;
@@ -436,8 +438,8 @@ public class PolicyHelper {
 
     public SessionWrapper update(Policy.Session session) {
       this.lastUpdateTime = session != null ?
-          session.cloudManager.getTimeSource().getTime() :
-          TimeSource.NANO_TIME.getTime();
+          session.cloudManager.getTimeSource().getTimeNs() :
+          TimeSource.NANO_TIME.getTimeNs();
       this.session = session;
       return this;
     }

@@ -102,7 +102,7 @@ fq=+popularity:[10 TO *] +section:0
 ----
 
 * The document sets from each filter query are cached independently. Thus, concerning the previous examples: use a single `fq` containing two mandatory clauses if those clauses appear together often, and use two separate `fq` parameters if they are relatively independent. (To learn about tuning cache sizes and making sure a filter cache actually exists, see <<the-well-configured-solr-instance.adoc#the-well-configured-solr-instance,The Well-Configured Solr Instance>>.)
-* It is also possible to use <<the-standard-query-parser.adoc#differences-between-lucene-query-parser-and-the-solr-standard-query-parser,filter(condition) syntax>> inside the `fq` to cache clauses individually and - among other things - to achieve union of cached filter queries.
+* It is also possible to use <<the-standard-query-parser.adoc#differences-between-lucene-s-classic-query-parser-and-solr-s-standard-query-parser,filter(condition) syntax>> inside the `fq` to cache clauses individually and - among other things - to achieve union of cached filter queries.
 
 * As with all parameters: special characters in an URL need to be properly escaped and encoded as hex values. Online tools are available to help you with URL-encoding. For example: http://meyerweb.com/eric/tools/dencoder/.
 
@@ -216,7 +216,7 @@ As this check is periodically performed, the actual time for which a request can
 
 This parameter may be set to either `true` or `false`.
 
-If set to `true`, and if <<indexconfig-in-solrconfig.adoc#mergepolicyfactory,the mergePolicyFactory>> for this collection is a {solr-javadocs}/solr-core/org/apache/solr/index/SortingMergePolicyFactory.html[`SortingMergePolicyFactory`] which uses a `sort` option compatible with <<sort Parameter,the sort parameter>> specified for this query, then Solr will attempt to use an {lucene-javadocs}/core/org/apache/lucene/search/EarlyTerminatingSortingCollector.html[`EarlyTerminatingSortingCollector`].
+If set to `true`, and if <<indexconfig-in-solrconfig.adoc#mergepolicyfactory,the mergePolicyFactory>> for this collection is a {solr-javadocs}/solr-core/org/apache/solr/index/SortingMergePolicyFactory.html[`SortingMergePolicyFactory`] which uses a `sort` option compatible with <<sort Parameter,the sort parameter>> specified for this query, then Solr will be able to skip documents on a per-segment basis that are definitively not candidates for the current page of results.
 
 If early termination is used, a `segmentTerminatedEarly` header will be included in the `responseHeader`.
 

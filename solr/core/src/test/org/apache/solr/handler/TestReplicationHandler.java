@@ -494,7 +494,7 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
   }
   
   @Test
-  @BadApple(bugUrl="https://issues.apache.org/jira/browse/SOLR-12028")
+  @BadApple(bugUrl="https://issues.apache.org/jira/browse/SOLR-11673")
   public void doTestIndexAndConfigReplication() throws Exception {
     clearIndexWithReplication();
 
@@ -637,6 +637,10 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
 
       masterJetty.stop();
       masterJetty.start();
+
+      // close and re-create master client because its connection pool has stale connections
+      masterClient.close();
+      masterClient = createNewSolrClient(masterJetty.getLocalPort());
 
       nDocs--;
       for (int i = 0; i < nDocs; i++)

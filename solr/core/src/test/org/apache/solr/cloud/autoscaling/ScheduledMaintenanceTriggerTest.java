@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.cloud.autoscaling.AutoScalingConfig;
-import org.apache.solr.client.solrj.cloud.autoscaling.SolrCloudManager;
+import org.apache.solr.client.solrj.cloud.SolrCloudManager;
 import org.apache.solr.client.solrj.cloud.autoscaling.TriggerEventProcessorStage;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.cloud.CloudTestUtils;
@@ -68,6 +68,10 @@ public class ScheduledMaintenanceTriggerTest extends SolrCloudTestCase {
       solrClient = cluster.getSolrClient();
     } else {
       cloudManager = SimCloudManager.createCluster(1, TimeSource.get("simTime:50"));
+      // wait for defaults to be applied - due to accelerated time sometimes we may miss this
+      cloudManager.getTimeSource().sleep(10000);
+      AutoScalingConfig cfg = cloudManager.getDistribStateManager().getAutoScalingConfig();
+      assertFalse("autoscaling config is empty", cfg.isEmpty());
       solrClient = ((SimCloudManager)cloudManager).simGetSolrClient();
     }
     timeSource = cloudManager.getTimeSource();
@@ -127,7 +131,7 @@ public class ScheduledMaintenanceTriggerTest extends SolrCloudTestCase {
     public synchronized void onEvent(TriggerEvent event, TriggerEventProcessorStage stage, String actionName,
                                      ActionContext context, Throwable error, String message) {
       List<CapturedEvent> lst = listenerEvents.computeIfAbsent(config.name, s -> new ArrayList<>());
-      CapturedEvent ev = new CapturedEvent(timeSource.getTime(), context, config, stage, actionName, event, message);
+      CapturedEvent ev = new CapturedEvent(timeSource.getTimeNs(), context, config, stage, actionName, event, message);
       log.info("=======> " + ev);
       lst.add(ev);
     }
@@ -146,6 +150,7 @@ public class ScheduledMaintenanceTriggerTest extends SolrCloudTestCase {
   }
 
   @Test
+  @BadApple(bugUrl="https://issues.apache.org/jira/browse/SOLR-12028") // 17-Mar-2018
   public void testInactiveShardCleanup() throws Exception {
     String collection1 = getClass().getSimpleName() + "_collection1";
     CollectionAdminRequest.Create create1 = CollectionAdminRequest.createCollection(collection1,

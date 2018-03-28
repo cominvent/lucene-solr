@@ -78,6 +78,8 @@ public class ZkStateReader implements Closeable {
   public static final String CORE_NODE_NAME_PROP = "core_node_name";
   public static final String ROLES_PROP = "roles";
   public static final String STATE_PROP = "state";
+  // if this flag equals to false and the replica does not exist in cluster state, set state op become no op (default is true)
+  public static final String FORCE_SET_STATE_PROP = "force_set_state";
   /**  SolrCore name. */
   public static final String CORE_NAME_PROP = "core";
   public static final String COLLECTION_PROP = "collection";
@@ -451,6 +453,10 @@ public class ZkStateReader implements Closeable {
       });
       securityData = getSecurityProps(true);
     }
+
+    collectionPropsWatches.forEach((k,v) -> {
+      new PropsWatcher(k).refreshAndWatch(true);
+    });
   }
 
   private void addSecurityNodeWatcher(final Callable<Pair<byte[], Stat>> callback)
@@ -1295,20 +1301,6 @@ public class ZkStateReader implements Closeable {
     if (reconstructState.get()) {
       new StateWatcher(collection).refreshAndWatch();
     }
-
-    AtomicBoolean addPropsWatch = new AtomicBoolean(false);
-    collectionPropsWatches.compute(collection, (k, v) -> {
-      if (v == null) {
-        addPropsWatch.set(true);
-        v = new CollectionWatch<>();
-      }
-      v.coreRefCount++;
-      return v;
-    });
-
-    if (addPropsWatch.get()) {
-      new PropsWatcher(collection).refreshAndWatch(false);
-    }
   }
 
   /**
@@ -1341,18 +1333,6 @@ public class ZkStateReader implements Closeable {
         constructState(Collections.emptySet());
       }
     }
-
-    collectionPropsWatches.compute(collection, (k, v) -> {
-      if (v == null)
-        return null;
-      if (v.coreRefCount > 0)
-        v.coreRefCount--;
-      if (v.canBeRemoved()) {
-        watchedCollectionProps.remove(collection);
-        return null;
-      }
-      return v;
-    });
   }
 
   /**

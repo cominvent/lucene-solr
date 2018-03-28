@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.util.EntityUtils;
-import org.apache.solr.client.solrj.cloud.autoscaling.DistribStateManager;
+import org.apache.solr.client.solrj.cloud.DistribStateManager;
 import org.apache.solr.client.solrj.cloud.autoscaling.VersionedData;
 import org.apache.solr.client.solrj.impl.BinaryRequestWriter;
 import org.apache.solr.common.IteratorWriter;
@@ -471,10 +471,10 @@ public class Utils {
   }
 
   public static long time(TimeSource timeSource, TimeUnit unit) {
-    return unit.convert(timeSource.getTime(), TimeUnit.NANOSECONDS);
+    return unit.convert(timeSource.getTimeNs(), TimeUnit.NANOSECONDS);
   }
 
   public static long timeElapsed(TimeSource timeSource, long start, TimeUnit unit) {
-    return unit.convert(timeSource.getTime() - NANOSECONDS.convert(start, unit), NANOSECONDS);
+    return unit.convert(timeSource.getTimeNs() - NANOSECONDS.convert(start, unit), NANOSECONDS);
   }
 }

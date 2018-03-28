@@ -30,13 +30,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakLingering;
 import com.carrotsearch.randomizedtesting.annotations.TimeoutSuite;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.cloud.autoscaling.AutoScalingConfig;
-import org.apache.solr.client.solrj.cloud.autoscaling.SolrCloudManager;
+import org.apache.solr.client.solrj.cloud.SolrCloudManager;
 import org.apache.solr.client.solrj.cloud.autoscaling.Suggester;
 import org.apache.solr.client.solrj.cloud.autoscaling.TriggerEventProcessorStage;
 import org.apache.solr.client.solrj.cloud.autoscaling.TriggerEventType;
@@ -69,6 +70,7 @@ import static org.apache.solr.cloud.autoscaling.AutoScalingHandlerTest.createAut
  */
 @TimeoutSuite(millis = 4 * 3600 * 1000)
 @LogLevel("org.apache.solr.cloud.autoscaling=DEBUG")
+@ThreadLeakLingering(linger = 20000) // ComputePlanAction may take significant time to complete
 @LuceneTestCase.BadApple(bugUrl = "https://issues.apache.org/jira/browse/SOLR-12075")
 public class TestLargeCluster extends SimSolrCloudTestCase {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -114,7 +116,7 @@ public class TestLargeCluster extends SimSolrCloudTestCase {
     public synchronized void onEvent(TriggerEvent event, TriggerEventProcessorStage stage, String actionName,
                                      ActionContext context, Throwable error, String message) {
       List<CapturedEvent> lst = listenerEvents.computeIfAbsent(config.name, s -> new ArrayList<>());
-      lst.add(new CapturedEvent(cluster.getTimeSource().getTime(), context, config, stage, actionName, event, message));
+      lst.add(new CapturedEvent(cluster.getTimeSource().getTimeNs(), context, config, stage, actionName, event, message));
     }
   }
 
