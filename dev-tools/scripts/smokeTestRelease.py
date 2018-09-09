@@ -352,7 +352,7 @@ def checkSigs(project, urlString, version, tmpDir, isSigned, local_keys):
   else:
     keysFileURL = "https://archive.apache.org/dist/lucene/KEYS"
     print("    Downloading online KEYS file %s" % keysFileURL)
-    download('KEYS' % keysFileURL, tmpDir)
+    download('KEYS', keysFileURL, tmpDir)
     keysFile = '%s/KEYS' % (tmpDir)
   
   # Set up clean gpg world; import keys file:
