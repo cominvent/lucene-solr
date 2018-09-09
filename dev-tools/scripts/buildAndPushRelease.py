@@ -313,13 +313,15 @@ def check_key_in_keys(gpgKeyID, local_keys):
     if len(gpgKeyID) > 40:
       gpgKeyID = gpgKeyID.replace(" ", "")
     if len(gpgKeyID) == 8:
-      re_to_match = r"^pub\s+\d+[DR]/%s " % gpgKeyID
+      gpgKeyID8Char = "%s %s" % (gpgKeyID[0:4], gpgKeyID[4:8])
+      print("Generated id string %s" % gpgKeyID8Char)
+      re_to_match = r"^pub .*\n\s+%s" % gpgKeyID8Char
     elif len(gpgKeyID) == 40:
       gpgKeyID40Char = "%s %s %s %s %s  %s %s %s %s %s" % \
                        (gpgKeyID[0:4], gpgKeyID[4:8], gpgKeyID[8:12], gpgKeyID[12:16], gpgKeyID[16:20],
                        gpgKeyID[20:24], gpgKeyID[24:28], gpgKeyID[28:32], gpgKeyID[32:36], gpgKeyID[36:])
       print("Generated id string %s" % gpgKeyID40Char)
-      re_to_match = r"^\s+Key fingerprint = %s$" % gpgKeyID40Char
+      re_to_match = r"^pub .*\n\s+%s" % gpgKeyID40Char
     else:
       print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
       exit(2)
