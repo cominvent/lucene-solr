@@ -271,14 +271,6 @@ def parse_config():
   config.version = read_version(config.root)
   print('Building version: %s' % config.version)
 
-  if config.sign:
-    sys.stdout.flush()
-    import getpass
-    config.key_id = config.sign
-    config.key_password = getpass.getpass('Enter GPG keystore password: ')
-  else:
-    config.gpg_password = None
-
   return config
 
 def check_cmdline_tools():  # Fail fast if there are cmdline tool problems
@@ -314,16 +306,14 @@ def check_key_in_keys(gpgKeyID, local_keys):
       gpgKeyID = gpgKeyID.replace(" ", "")
     if len(gpgKeyID) == 8:
       gpgKeyID8Char = "%s %s" % (gpgKeyID[0:4], gpgKeyID[4:8])
-      print("Generated id string %s" % gpgKeyID8Char)
-      re_to_match = r"^pub .*\n\s+%s" % gpgKeyID8Char
+      re_to_match = r"^pub .*\n\s+\w{4} \w{4} \w{4} \w{4} \w{4}  \w{4} \w{4} \w{4} %s" % gpgKeyID8Char
     elif len(gpgKeyID) == 40:
       gpgKeyID40Char = "%s %s %s %s %s  %s %s %s %s %s" % \
                        (gpgKeyID[0:4], gpgKeyID[4:8], gpgKeyID[8:12], gpgKeyID[12:16], gpgKeyID[16:20],
                        gpgKeyID[20:24], gpgKeyID[24:28], gpgKeyID[28:32], gpgKeyID[32:36], gpgKeyID[36:])
-      print("Generated id string %s" % gpgKeyID40Char)
       re_to_match = r"^pub .*\n\s+%s" % gpgKeyID40Char
     else:
-      print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix.')
+      print('Invalid gpg key id format. Must be 8 byte short ID or 40 byte fingerprint, with or without 0x prefix, no spaces.')
       exit(2)
     if re.search(re_to_match, keysFileText, re.MULTILINE):
       print('    Found key %s in KEYS file at %s' % (gpgKeyID, keysFileLocation))
@@ -339,7 +329,14 @@ def main():
 
   c = parse_config()
 
-  check_key_in_keys(c.key_id, c.local_keys)
+  if c.sign:
+    sys.stdout.flush()
+    c.key_id = c.sign
+    check_key_in_keys(c.key_id, c.local_keys)
+    import getpass
+    c.key_password = getpass.getpass('Enter GPG keystore password: ')
+  else:
+    c.gpg_password = None
   
   if c.prepare:
     rev = prepare(c.root, c.version, c.key_id, c.key_password)
