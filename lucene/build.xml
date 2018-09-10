@@ -387,7 +387,7 @@
   <!-- ================================================================== -->
   <target name="dist-src" depends="package-tgz-src"/>
 
-  <target name="dist-all" depends="dist, dist-src, -dist-changes, -dist-keys"/>
+  <target name="dist-all" depends="dist, dist-src, -dist-changes"/>
 
   <!-- copy changes/ to the release folder -->
   <target name="-dist-changes">
