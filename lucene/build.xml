@@ -387,7 +387,7 @@
   <!-- ================================================================== -->
   <target name="dist-src" depends="package-tgz-src"/>
 
-  <target name="dist-all" depends="dist, dist-src, -dist-changes"/>
+  <target name="dist-all" depends="dist, dist-src, -dist-changes, -dist-keys"/>
 
   <!-- copy changes/ to the release folder -->
   <target name="-dist-changes">
@@ -398,7 +398,7 @@
 
   <target name="prepare-release-no-sign" depends="clean, dist-all, generate-maven-artifacts"/>
   <target name="prepare-release" depends="prepare-release-no-sign, sign-artifacts"/>
-  
+
   <target name="-dist-maven" depends="install-maven-tasks">
     <sequential>
       <m2-deploy pom.xml="${filtered.pom.templates.dir}/pom.xml"/>        <!-- Lucene/Solr grandparent POM -->

@@ -285,7 +285,7 @@ def checkAllJARs(topDir, project, gitRevision, version, tmpDir, baseURL):
                                % (fullPath, luceneDistFilenames[jarFilename]))
 
 
-def checkSigs(project, urlString, version, tmpDir, isSigned, local_keys):
+def checkSigs(project, urlString, version, tmpDir, isSigned):
 
   print('  test basics...')
   ents = getDirEntries(urlString)
