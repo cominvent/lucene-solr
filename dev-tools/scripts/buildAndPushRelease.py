@@ -78,7 +78,7 @@ def getGitRev():
     raise RuntimeError('git clone is dirty:\n\n%s' % status)
   branch = os.popen('git rev-parse --abbrev-ref HEAD').read().strip()
   command = 'git log origin/%s..' % branch
-  p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   stdout, stderr = p.communicate()
   if len(stdout.strip()) > 0:
     raise RuntimeError('There are unpushed commits - "%s" output is:\n\n%s' % (command, stdout))
