@@ -81,9 +81,9 @@ def getGitRev():
   p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   stdout, stderr = p.communicate()
   if len(stdout.strip()) > 0:
-    raise RuntimeError('There are unpushed commits - "%s" output is:\n\n%s' % (command, stdout))
+    raise RuntimeError('There are unpushed commits - "%s" output is:\n\n%s' % (command, stdout.decode('utf-8')))
   if len(stderr.strip()) > 0:
-    raise RuntimeError('Command "%s" failed:\n\n%s' % (command, stderr))
+    raise RuntimeError('Command "%s" failed:\n\n%s' % (command, stderr.decode('utf-8')))
 
   print('  git clone is clean')
   return os.popen('git rev-parse HEAD').read().strip()
