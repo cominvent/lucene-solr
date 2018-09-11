@@ -161,7 +161,10 @@ Optimizations
   (Jim Ferenczi, Adrien Grand)
 
 ======================= Lucene 7.6.0 =======================
-(No Changes)
+
+Build:
+
+* LUCENE-8493: Stop publishing insecure .sha1 files with releases (janhoy)
 
 ======================= Lucene 7.5.0 =======================
 
