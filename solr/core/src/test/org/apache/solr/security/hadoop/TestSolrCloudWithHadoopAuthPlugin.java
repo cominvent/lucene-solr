@@ -119,11 +119,13 @@ public class TestSolrCloudWithHadoopAuthPlugin extends SolrCloudTestCase {
     CollectionAdminRequest.Create create = CollectionAdminRequest.createCollection(collectionName, "conf1",
         NUM_SHARDS, REPLICATION_FACTOR);
     create.process(solrClient);
+    assertAuthMetrics(4, 2, 0, 2, 0, 0, 0, 0);
 
     SolrInputDocument doc = new SolrInputDocument();
     doc.setField("id", "1");
     solrClient.add(collectionName, doc);
     solrClient.commit(collectionName);
+    assertAuthMetrics(8, 4, 0, 4, 0, 0, 0, 0);
 
     SolrQuery query = new SolrQuery();
     query.setQuery("*:*");
@@ -134,6 +136,7 @@ public class TestSolrCloudWithHadoopAuthPlugin extends SolrCloudTestCase {
     deleteReq.process(solrClient);
     AbstractDistribZkTestBase.waitForCollectionToDisappear(collectionName,
         solrClient.getZkStateReader(), true, true, 330);
+    assertAuthMetrics(14, 7, 0, 7, 0, 0, 0, 0);
   }
 
 }

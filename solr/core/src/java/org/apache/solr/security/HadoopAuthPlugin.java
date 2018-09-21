@@ -16,18 +16,6 @@
  */
 package org.apache.solr.security;
 
-import static org.apache.solr.security.RequestContinuesRecorderAuthenticationHandler.REQUEST_CONTINUES_ATTR;
-import static org.apache.solr.security.HadoopAuthFilter.DELEGATION_TOKEN_ZK_CLIENT;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.lang.invoke.MethodHandles;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
@@ -37,6 +25,15 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.lang.invoke.MethodHandles;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 import org.apache.commons.collections.iterators.IteratorEnumeration;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
@@ -48,6 +45,9 @@ import org.apache.solr.common.util.SuppressForbidden;
 import org.apache.solr.core.CoreContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.solr.security.HadoopAuthFilter.DELEGATION_TOKEN_ZK_CLIENT;
+import static org.apache.solr.security.RequestContinuesRecorderAuthenticationHandler.REQUEST_CONTINUES_ATTR;
 
 /**
  * This class implements a generic plugin which can use authentication schemes exposed by the
@@ -243,6 +243,25 @@ public class HadoopAuthPlugin extends AuthenticationPlugin {
       }
     };
     authFilter.doFilter(request, rspCloseShield, filterChain);
+    
+    switch (frsp.getStatus()) {
+      case HttpServletResponse.SC_UNAUTHORIZED:
+        // TODO: Cannot tell whether the 401 is due to wrong or missing credentials
+        numWrongCredentials.inc();
+        break;
+        
+      case HttpServletResponse.SC_FORBIDDEN:
+        // TODO: Are there other status codes which should also translate to error?
+        numErrors.mark();
+        break;
+
+      default:
+        if (frsp.getStatus() >= 200 && frsp.getStatus() <= 299) {
+          numAuthenticated.inc();
+        } else {
+          numErrors.mark();
+        }
+    }
 
     if (TRACE_HTTP) {
       log.info("----------HTTP Response---------");
