@@ -67,6 +67,7 @@ Other Changes
 
 * SOLR-10288: Remove non-minified JavaScript from the webapp. (Erik Hatcher, marcussorealheis)
 
+
 ==================  8.3.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release.
@@ -128,7 +129,7 @@ Bug Fixes
 * SOLR-11556: Backup and restore command really supports picking one of a few repositories by
   repository parameter (Timothy Potter via Mikhail Khludnev)
 
-* SOLR-13647: default solr.in.sh contains incorrect default value (John Ryan)
+* SOLR-13647: Default solr.in.sh contains incorrect default value (John Ryan)
 
 * SOLR-13660: Fixed AbstractFullDistribZkTestBase.waitForActiveReplicaCount() to ensure
   replicas are active. (hossman)
