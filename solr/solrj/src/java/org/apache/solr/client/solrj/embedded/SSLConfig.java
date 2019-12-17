@@ -121,7 +121,7 @@ public class SSLConfig {
     }
     // else...
     
-    SslContextFactory factory = new SslContextFactory(false);
+    SslContextFactory.Server factory = new SslContextFactory.Server();
     if (getKeyStore() != null)
       factory.setKeyStorePath(getKeyStore());
     if (getKeyStorePassword() != null)
@@ -141,7 +141,7 @@ public class SSLConfig {
 
   private static SslContextFactory configureSslFromSysProps() {
 
-    SslContextFactory sslcontext = new SslContextFactory(false);
+    SslContextFactory.Server sslcontext = new SslContextFactory.Server();
 
     if (null != System.getProperty("javax.net.ssl.keyStore")) {
       sslcontext.setKeyStorePath
