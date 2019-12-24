@@ -41,6 +41,12 @@ The exact output will vary, but you need to make sure you meet the minimum versi
 
 Some versions of Java VM have bugs that may impact your implementation. To be sure, check the page https://wiki.apache.org/confluence/display/LUCENEJAVA/JavaBugs[Lucene Java Bugs].
 
+=== Zookeeper Requirement
+
+When using Solr Cloud you will need to set up an <<setting-up-an-external-zookeeper-ensemble.adoc,external Zookeeper ensemble>>.
+
+Solr is tested with Zookeeper version {ivy-zookeeper-version}, but later minor versions should also work well.
+
 === Sources for Java
 
 Java is available from a number of providers. Lucene and Solr regularly test with https://jdk.java.net/[OpenJDK] and Oracle versions of Java. Some are free, others have a cost, some provide security patches and support, others do not. We recommend you read the article https://medium.com/@javachampions/java-is-still-free-2-0-0-6b9aa8d6d244[Java is still free by Java Champions] to help you decide.
